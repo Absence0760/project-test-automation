@@ -41,12 +41,15 @@ export class TestRunner {
   private parser = new GherkinParser();
   private importedStepFiles = new Set<string>();
   private verbose: boolean;
-
   private dryRun: boolean;
+  private slowMs: number;
+  private keepOpen: boolean;
 
-  constructor(config: BetterTestConfig, runtimeOpts?: { verbose?: boolean; dryRun?: boolean }) {
+  constructor(config: BetterTestConfig, runtimeOpts?: { verbose?: boolean; dryRun?: boolean; slowMs?: number; keepOpen?: boolean }) {
     this.verbose = runtimeOpts?.verbose ?? false;
     this.dryRun = runtimeOpts?.dryRun ?? false;
+    this.slowMs = runtimeOpts?.slowMs ?? 0;
+    this.keepOpen = runtimeOpts?.keepOpen ?? false;
     this.config = config;
     this.options = {
       workers: config.runner.workers ?? 'auto',
@@ -128,7 +131,7 @@ export class TestRunner {
       launch = await launchBrowser(this.config.browser);
       selectorCache = new SelectorCache(resolve(process.cwd(), this.config.selectors.cachePath));
       await selectorCache.load();
-      ctx = new BrowserContext(launch.page, this.config.baseUrl, this.verbose, selectorCache);
+      ctx = new BrowserContext(launch.page, this.config.baseUrl, this.verbose, selectorCache, this.slowMs);
     }
 
     const allResults: TestResult[] = [];
@@ -241,8 +244,13 @@ export class TestRunner {
       if (selectorCache) {
         await selectorCache.save();
       }
-      if (launch) {
+      if (launch && !this.keepOpen) {
         await launch.close();
+      }
+      if (launch && this.keepOpen) {
+        console.log('\n  Browser left open. Press Ctrl+C to close.\n');
+        // Keep the process alive until user kills it
+        await new Promise(() => {});
       }
     }
   }

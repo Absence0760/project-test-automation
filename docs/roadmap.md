@@ -19,7 +19,7 @@ The goal is a working test runner that can execute basic tests against a real br
 
 ### Milestone 1.2: Semantic Selector Engine (Weeks 3-6)
 
-- [ ] Accessibility tree extraction from live browser sessions
+- [x] Accessibility tree extraction — `page.accessibility.snapshot()` on first attempt, DOM strategies on retry
 - [x] Intent parser — "the submit button in the login form" -> role + name + scope (keyword extraction + role inference)
 - [x] Accessibility-first resolution (ARIA labels, label text → linked input)
 - [x] NLP text matching fallback (button text, placeholders, headings, role text)
