@@ -34,6 +34,7 @@ struct BiDiCommand {
 
 #[derive(Debug, Deserialize)]
 struct BiDiResponse {
+    #[allow(dead_code)]
     id: u64,
     result: Option<serde_json::Value>,
     error: Option<BiDiError>,
@@ -88,7 +89,7 @@ impl BiDiSession {
             })?;
 
         conn.write
-            .send(Message::Text(msg))
+            .send(Message::Text(msg.into()))
             .await
             .map_err(|e| ProtocolError::WebSocket(e.to_string()))?;
 

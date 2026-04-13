@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::collections::{HashMap, HashSet};
 
 use serde::{Deserialize, Serialize};
 
@@ -87,30 +87,8 @@ impl ExecutionGraph {
 
     /// Compute a topological ordering of the graph for sequential fallback.
     pub fn topological_order(&self) -> Result<Vec<&TestNode>, GraphError> {
-        let mut in_degree: HashMap<&str, usize> = HashMap::new();
-        for id in self.nodes.keys() {
-            in_degree.entry(id).or_insert(0);
-        }
-        for deps in self.dependencies.values() {
-            for dep in deps {
-                // dep must come before — we're counting how many things depend on each node
-            }
-        }
-        for deps in self.dependencies.values() {
-            for _dep in deps {
-                // Nodes with dependencies have non-zero in-degree
-            }
-        }
-
-        // Kahn's algorithm
-        for (id, deps) in &self.dependencies {
-            let _ = in_degree.entry(id).or_insert(0);
-            for _ in deps {
-                // This node has deps.len() dependencies
-            }
-        }
-
-        // Simplified: just return nodes sorted by failure probability (fail-fast)
+        // TODO: Implement full Kahn's algorithm for topological ordering
+        // For now, sort by failure probability (fail-fast)
         let mut nodes: Vec<&TestNode> = self.nodes.values().collect();
         nodes.sort_by(|a, b| {
             b.failure_probability

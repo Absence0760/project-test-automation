@@ -1,5 +1,5 @@
 use napi_derive::napi;
-use bettertest_core::selector::{ResolvedSelector, SemanticSelector};
+use bettertest_core::selector::SemanticSelector;
 
 #[napi]
 pub fn create_selector(intent: String, scope: Option<String>) -> napi::Result<String> {

@@ -1,4 +1,4 @@
-use super::{ElementFingerprint, ResolvedSelector, ResolutionStrategy, SemanticSelector};
+use super::{ResolvedSelector, SemanticSelector};
 
 /// Resolves semantic selectors using the accessibility tree.
 ///
