@@ -1,6 +1,6 @@
-mod accessibility;
-mod resolver;
-mod visual;
+pub mod accessibility;
+pub mod resolver;
+pub mod visual;
 
 pub use accessibility::AccessibilityStrategy;
 pub use resolver::SelectorResolver;
