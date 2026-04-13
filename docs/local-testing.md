@@ -253,17 +253,31 @@ pnpm exec tsx packages/runner/src/cli.ts \
   --base-url http://localhost:3000 \
   --verbose
 
-# Headed — watch Chrome execute the tests
+# Headed — watch Chrome execute the tests in real time
 pnpm exec tsx packages/runner/src/cli.ts \
   --testDir examples \
   --base-url http://localhost:3000 \
-  --headed \
+  --headed --slow 3000 --keep-open \
+  --verbose
+
+# Headed without slow-motion (runs fast, browser stays open)
+pnpm exec tsx packages/runner/src/cli.ts \
+  --testDir examples \
+  --base-url http://localhost:3000 \
+  --headed --keep-open \
   --verbose
 
 # Dry-run — no browser, just log what would happen
 pnpm exec tsx packages/runner/src/cli.ts \
   --testDir examples \
   --dry-run \
+  --verbose
+
+# With retries (marks tests as flaky if they pass on retry)
+pnpm exec tsx packages/runner/src/cli.ts \
+  --testDir examples \
+  --base-url http://localhost:3000 \
+  --retries 2 \
   --verbose
 ```
 
@@ -273,13 +287,17 @@ pnpm exec tsx packages/runner/src/cli.ts \
 |------|-------------|
 | `--testDir <path>` | Directory containing `.feature` and `.steps.ts` files |
 | `--base-url <url>` | Base URL of the app under test |
-| `--headed` | Run with a visible Chrome window |
+| `--headed` | Run with a visible Chrome window (maximized, brought to front) |
 | `--headless` | Run Chrome invisibly (default) |
+| `--slow <ms>` | Pause between steps so you can watch (e.g., `--slow 3000` for 3s) |
+| `--keep-open` | Keep the browser open after tests finish (press Ctrl+C to close) |
 | `--dry-run` | No browser — log actions only |
+| `--retries <n>` | Retry failed tests up to N times (marks as `flaky` if pass on retry) |
 | `--tags <tags>` | Comma-separated tag filter (e.g., `@smoke,@auth`) |
 | `--failFast` | Stop on first failure |
 | `-v, --verbose` | Show each action the context performs |
 | `-c, --config <path>` | Path to config file |
+| `-h, --help` | Show help |
 
 ### What the 4 scenarios test
 

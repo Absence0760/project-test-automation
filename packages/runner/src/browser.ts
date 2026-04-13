@@ -1,4 +1,4 @@
-import type { Page, ElementHandle } from 'puppeteer-core';
+import type { Page, Frame, ElementHandle } from 'puppeteer-core';
 import type { StepContext } from '@bettertest/bdd';
 import { mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
@@ -20,6 +20,10 @@ export class BrowserContext implements StepContext {
   private stepIndex = 0;
   private selectorCache: SelectorCache | undefined;
   private slowMs: number;
+  /** When panel is active, this is the parent page that holds the sidebar + iframe. */
+  private panelPage: Page | null = null;
+  /** When panel is active, DOM queries run against this frame (the iframe). */
+  private appFrame: Frame | null = null;
 
   constructor(page: Page, baseUrl?: string, verbose = false, selectorCache?: SelectorCache, slowMs = 0) {
     this.selectorCache = selectorCache ?? undefined;
@@ -28,6 +32,17 @@ export class BrowserContext implements StepContext {
     this.verbose = verbose;
     this.slowMs = slowMs;
     this.screenshotDir = join(process.cwd(), 'test-results', 'screenshots');
+  }
+
+  /** Configure for panel mode: DOM queries target the iframe, navigation changes iframe src. */
+  setupPanel(panelPage: Page, appFrame: Frame): void {
+    this.panelPage = panelPage;
+    this.appFrame = appFrame;
+  }
+
+  /** The query target — iframe frame when panel is active, page otherwise. */
+  private get target(): Page | Frame {
+    return this.appFrame ?? this.page;
   }
 
   /** Pause between actions so you can watch in headed mode. */
@@ -40,8 +55,28 @@ export class BrowserContext implements StepContext {
   async navigate(url: string): Promise<void> {
     const resolved = url.startsWith('http') ? url : `${this.baseUrl}${url}`;
     this.log('navigate', resolved);
-    await this.page.bringToFront();
-    await this.page.goto(resolved, { waitUntil: 'networkidle0', timeout: 10_000 });
+
+    if (this.panelPage) {
+      // Panel mode: change the iframe src, re-acquire frame reference
+      await this.panelPage.evaluate((u) => {
+        (document.getElementById('bta-app') as HTMLIFrameElement).src = u;
+      }, resolved);
+      // Wait for iframe to load and re-acquire frame
+      for (let i = 0; i < 20; i++) {
+        await new Promise((r) => setTimeout(r, 200));
+        const frames = this.panelPage.frames();
+        const frame = frames.find((f) => f !== this.panelPage!.mainFrame() && f.url().includes(new URL(resolved).pathname));
+        if (frame) {
+          this.appFrame = frame;
+          try { await frame.waitForSelector('body', { timeout: 3000 }); } catch {}
+          break;
+        }
+      }
+    } else {
+      // Direct mode: navigate the page
+      await this.page.bringToFront();
+      await this.page.goto(resolved, { waitUntil: 'networkidle0', timeout: 10_000 });
+    }
     await this.slow();
   }
 
@@ -49,15 +84,22 @@ export class BrowserContext implements StepContext {
     this.log('click', selector);
     const el = await this.resolveSelector(selector);
 
-    // Start listening for navigation BEFORE clicking
-    const navPromise = this.page.waitForNavigation({ waitUntil: 'load', timeout: 1_000 })
-      .catch(() => null);
-
-    await el.click();
-
-    // Wait for navigation if it happened, or settle quickly
-    await navPromise;
-    // Brief pause for JS DOM updates (form validation, error messages)
+    if (this.panelPage) {
+      // Panel mode: click, then re-acquire iframe frame after potential navigation
+      await el.click();
+      await new Promise((r) => setTimeout(r, 500));
+      const frames = this.panelPage.frames();
+      const frame = frames.find((f) =>
+        f !== this.panelPage!.mainFrame() && f.url() !== 'about:blank' && f.url().startsWith('http'),
+      );
+      if (frame) this.appFrame = frame;
+    } else {
+      // Direct mode: listen for navigation
+      const navPromise = this.page.waitForNavigation({ waitUntil: 'load', timeout: 1_000 })
+        .catch(() => null);
+      await el.click();
+      await navPromise;
+    }
     await new Promise((r) => setTimeout(r, 100));
     await this.slow();
   }
@@ -152,7 +194,7 @@ export class BrowserContext implements StepContext {
       const cached = this.selectorCache.get(intent);
       if (cached) {
         try {
-          const el = await this.page.$(cached.cssSelector);
+          const el = await this.target.$(cached.cssSelector);
           if (el) {
             const isVisible = await el.evaluate((node) => {
               const s = window.getComputedStyle(node);
@@ -365,13 +407,13 @@ export class BrowserContext implements StepContext {
     // Strategy 1: use ARIA role + name to build a selector
     if (role && name) {
       // Try puppeteer's built-in ARIA selector
-      const el = await this.page.$(`aria/${name}`).catch(() => null);
+      const el = await this.target.$(`aria/${name}`).catch(() => null);
       if (el) return el;
     }
 
     // Strategy 2: find by role attribute + text content
     if (role === 'button' || role === 'link') {
-      const elements = await this.page.$$(role === 'button' ? 'button, [role="button"], input[type="submit"]' : 'a, [role="link"]');
+      const elements = await this.target.$$(role === 'button' ? 'button, [role="button"], input[type="submit"]' : 'a, [role="link"]');
       for (const el of elements) {
         const text = await el.evaluate((n) => (n.textContent ?? '').trim());
         if (text.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(text.toLowerCase())) {
@@ -382,19 +424,19 @@ export class BrowserContext implements StepContext {
 
     // Strategy 3: find by aria-label
     if (name) {
-      const el = await this.page.$(`[aria-label="${name}"], [aria-label*="${name}"]`).catch(() => null);
+      const el = await this.target.$(`[aria-label="${name}"], [aria-label*="${name}"]`).catch(() => null);
       if (el) return el;
     }
 
     // Strategy 4: for textbox role, find input with matching label
     if (role === 'textbox' && name) {
-      const labels = await this.page.$$('label');
+      const labels = await this.target.$$('label');
       for (const label of labels) {
         const text = await label.evaluate((n) => (n.textContent ?? '').trim().toLowerCase());
         if (text.includes(name.toLowerCase())) {
           const forId = await label.evaluate((n) => n.getAttribute('for'));
           if (forId) {
-            const input = await this.page.$(`#${forId}`);
+            const input = await this.target.$(`#${forId}`);
             if (input) return input;
           }
         }
@@ -405,7 +447,7 @@ export class BrowserContext implements StepContext {
   }
 
   private async findByAriaLabel(keywords: string[]): Promise<ElementHandle<Element> | null> {
-    const elements = await this.page.$$('[aria-label]');
+    const elements = await this.target.$$('[aria-label]');
     for (const el of elements) {
       const label = await el.evaluate((node) =>
         (node.getAttribute('aria-label') ?? '').toLowerCase(),
@@ -418,7 +460,7 @@ export class BrowserContext implements StepContext {
   }
 
   private async findByLabelText(keywords: string[]): Promise<ElementHandle<Element> | null> {
-    const labels = await this.page.$$('label');
+    const labels = await this.target.$$('label');
     for (const label of labels) {
       const text = await label.evaluate((node) =>
         (node.textContent ?? '').toLowerCase().trim(),
@@ -427,7 +469,7 @@ export class BrowserContext implements StepContext {
         // Follow the `for` attribute to find the linked input
         const forId = await label.evaluate((node) => node.getAttribute('for'));
         if (forId) {
-          const input = await this.page.$(`#${forId}`);
+          const input = await this.target.$(`#${forId}`);
           if (input) return input;
         }
         // Or find the input inside the label
@@ -442,7 +484,7 @@ export class BrowserContext implements StepContext {
     // Check buttons, links, and headings
     const selectors = ['button', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', '[role="button"]'];
     for (const sel of selectors) {
-      const elements = await this.page.$$(sel);
+      const elements = await this.target.$$(sel);
       for (const el of elements) {
         const text = await el.evaluate((node) =>
           (node.textContent ?? '').toLowerCase().trim(),
@@ -466,7 +508,7 @@ export class BrowserContext implements StepContext {
 
     if (!role) return null;
 
-    const elements = await this.page.$$(`[role="${role}"]`);
+    const elements = await this.target.$$(`[role="${role}"]`);
 
     // Filter to visible elements only
     const visible: ElementHandle<Element>[] = [];
@@ -495,7 +537,7 @@ export class BrowserContext implements StepContext {
   }
 
   private async findByPlaceholder(keywords: string[]): Promise<ElementHandle<Element> | null> {
-    const inputs = await this.page.$$('input[placeholder], textarea[placeholder]');
+    const inputs = await this.target.$$('input[placeholder], textarea[placeholder]');
     for (const el of inputs) {
       const placeholder = await el.evaluate((node) =>
         (node.getAttribute('placeholder') ?? '').toLowerCase(),
@@ -510,13 +552,13 @@ export class BrowserContext implements StepContext {
   private async findById(keywords: string[]): Promise<ElementHandle<Element> | null> {
     for (const kw of keywords) {
       // Try the keyword directly as an ID
-      const el = await this.page.$(`#${kw}`);
+      const el = await this.target.$(`#${kw}`);
       if (el) return el;
 
       // Try common ID patterns: submit-btn, login-form, etc.
       const patterns = [`#${kw}-btn`, `#${kw}-input`, `#${kw}-form`, `#${kw}-message`];
       for (const pattern of patterns) {
-        const match = await this.page.$(pattern);
+        const match = await this.target.$(pattern);
         if (match) return match;
       }
     }
@@ -538,13 +580,13 @@ export class BrowserContext implements StepContext {
 
     // "submit button" → last button in a form (submit buttons are typically at the bottom)
     if (lower.includes('submit') && lower.includes('button')) {
-      const buttons = await this.page.$$('form button, form [type="submit"], form input[type="submit"]');
+      const buttons = await this.target.$$('form button, form [type="submit"], form input[type="submit"]');
       if (buttons.length > 0) return buttons[buttons.length - 1]!;
     }
 
     // "X message" / "X notification" → visible element with text matching keywords
     if (lower.includes('message') || lower.includes('notification') || lower.includes('alert')) {
-      const candidates = await this.page.$$('div, p, span, section');
+      const candidates = await this.target.$$('div, p, span, section');
       for (const el of candidates) {
         const info = await el.evaluate((node) => {
           const style = window.getComputedStyle(node);
@@ -562,7 +604,7 @@ export class BrowserContext implements StepContext {
 
     // "X input" / "X field" → find input closest (in DOM order) to a text node containing keywords
     if (lower.includes('input') || lower.includes('field')) {
-      const allInputs = await this.page.$$('input, textarea, select');
+      const allInputs = await this.target.$$('input, textarea, select');
       for (const input of allInputs) {
         const nearby = await input.evaluate((node, kws) => {
           // Check previous sibling text, parent text, nearby label

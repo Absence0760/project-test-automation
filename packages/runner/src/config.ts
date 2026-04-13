@@ -73,7 +73,7 @@ const defaults: BetterTestConfig = {
     failFast: false,
     heal: false,
     tags: [],
-    timeoutMs: 30_000,
+    timeoutMs: 60_000,
     retries: 0,
   },
   reporters: [{ type: 'console' }],

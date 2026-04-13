@@ -29,6 +29,7 @@ import { BrowserContext } from './browser.js';
 import { launchBrowser, type LaunchResult } from './launcher.js';
 import { createReporters, notifyAll } from './reporters.js';
 import { SelectorCache } from './selector-cache.js';
+import { PanelState } from './panel.js';
 
 /**
  * The main test runner.
@@ -45,7 +46,10 @@ export class TestRunner {
   private slowMs: number;
   private keepOpen: boolean;
 
-  constructor(config: BetterTestConfig, runtimeOpts?: { verbose?: boolean; dryRun?: boolean; slowMs?: number; keepOpen?: boolean }) {
+  private headed: boolean;
+
+  constructor(config: BetterTestConfig, runtimeOpts?: { verbose?: boolean; dryRun?: boolean; slowMs?: number; keepOpen?: boolean; headed?: boolean }) {
+    this.headed = runtimeOpts?.headed ?? !config.browser.headless;
     this.verbose = runtimeOpts?.verbose ?? false;
     this.dryRun = runtimeOpts?.dryRun ?? false;
     this.slowMs = runtimeOpts?.slowMs ?? 0;
@@ -124,6 +128,7 @@ export class TestRunner {
     let ctx: DryRunContext | BrowserContext;
 
     let selectorCache: SelectorCache | undefined;
+    let panelRef: PanelState | undefined;
 
     if (this.dryRun) {
       ctx = new DryRunContext(this.config.baseUrl, this.verbose);
@@ -131,9 +136,24 @@ export class TestRunner {
       launch = await launchBrowser(this.config.browser);
       selectorCache = new SelectorCache(resolve(process.cwd(), this.config.selectors.cachePath));
       await selectorCache.load();
-      ctx = new BrowserContext(launch.page, this.config.baseUrl, this.verbose, selectorCache, this.slowMs);
+
+      // In headed mode, set up sidebar panel + iframe
+      const { panel: p, appFrame, page: mainPage } = await PanelState.create(
+        launch.browser, this.headed, this.config.baseUrl ?? '',
+      );
+      panelRef = p;
+
+      if (this.headed && appFrame !== mainPage.mainFrame()) {
+        // Panel mode: BrowserContext targets the iframe
+        const browserCtx = new BrowserContext(mainPage, this.config.baseUrl, this.verbose, selectorCache, this.slowMs);
+        browserCtx.setupPanel(mainPage, appFrame);
+        ctx = browserCtx;
+      } else {
+        ctx = new BrowserContext(launch.page, this.config.baseUrl, this.verbose, selectorCache, this.slowMs);
+      }
     }
 
+    const panel = panelRef ?? new PanelState(null, false);
     const allResults: TestResult[] = [];
     const suiteReports: SuiteReport[] = [];
     let aborted = false;
@@ -151,13 +171,23 @@ export class TestRunner {
       };
 
       await notifyAll(reporters, 'onSuiteStart', suiteReport);
+
+      // Panel: show suite name and add all scenarios
+      await panel.setSuite(suite.name);
+      for (const tc of suite.tests) {
+        await panel.addScenario(this.sanitizeId(tc.id), tc.name);
+      }
+
       const suiteStart = performance.now();
 
       for (const testCase of suite.tests) {
         if (aborted) break;
+        const scenarioId = this.sanitizeId(testCase.id);
+
+        await panel.scenarioRunning(scenarioId);
 
         ctx.reset();
-        let result = await this.executeTest(testCase, suite.name, registry, ctx);
+        let result = await this.executeTest(testCase, suite.name, registry, ctx, panel);
 
         // Retry logic: if test failed and retries are configured, re-run
         if (result.status === 'failed' && this.options.retries > 0) {
@@ -179,6 +209,16 @@ export class TestRunner {
             result = retryResult;
           }
         }
+
+        // Panel: mark scenario passed/failed
+        if (result.status === 'failed') {
+          await panel.scenarioFailed(scenarioId, result.durationMs);
+        } else {
+          await panel.scenarioPassed(scenarioId, result.durationMs);
+        }
+        const passedCount = allResults.filter((r) => r.status === 'passed' || r.status === 'flaky').length + (result.status !== 'failed' ? 1 : 0);
+        const failedCount = allResults.filter((r) => r.status === 'failed').length + (result.status === 'failed' ? 1 : 0);
+        await panel.updateStats(passedCount, failedCount, allResults.length + 1, performance.now() - runStart);
 
         allResults.push(result);
 
@@ -245,11 +285,11 @@ export class TestRunner {
         await selectorCache.save();
       }
       if (launch && !this.keepOpen) {
+        if (panelRef) await panelRef.destroy();
         await launch.close();
       }
       if (launch && this.keepOpen) {
         console.log('\n  Browser left open. Press Ctrl+C to close.\n');
-        // Keep the process alive until user kills it
         await new Promise(() => {});
       }
     }
@@ -262,30 +302,42 @@ export class TestRunner {
     suiteName: string,
     registry: StepRegistry,
     ctx: DryRunContext | BrowserContext,
+    panel?: PanelState,
   ): Promise<TestResult> {
     const stepResults: StepResult[] = [];
     let testStatus: TestStatus = 'passed';
     let testError: TestError | undefined;
     const testStart = performance.now();
+    const scenarioId = this.sanitizeId(testCase.id);
 
-    for (const step of testCase.steps) {
+    for (let stepIdx = 0; stepIdx < testCase.steps.length; stepIdx++) {
+      const step = testCase.steps[stepIdx]!;
       const stepStart = performance.now();
+
+      // Panel: add step as running
+      if (panel) {
+        await panel.addStep(scenarioId, step.description);
+      }
 
       // Strip keyword prefix ("Given ", "When ", etc.) to get raw text for matching
       const rawText = step.description.replace(/^(Given|When|Then|And|But)\s+/, '');
       const match = registry.find(rawText);
 
       if (!match) {
+        const durationMs = performance.now() - stepStart;
         stepResults.push({
           description: step.description,
           status: 'failed',
-          durationMs: performance.now() - stepStart,
+          durationMs,
         });
         testStatus = 'failed';
         testError = {
           message: `Step not defined: "${rawText}"`,
           stack: `No step definition matches "${rawText}".\nRegister it with: Given('${rawText}', async (ctx) => { ... })`,
         };
+        if (panel) {
+          await panel.stepFailed(scenarioId, stepIdx, `Step not defined: "${rawText}"`);
+        }
         break;
       }
 
@@ -308,25 +360,34 @@ export class TestRunner {
           clearTimeout(timer!);
         }
 
+        const durationMs = performance.now() - stepStart;
         stepResults.push({
           description: step.description,
           status: 'passed',
-          durationMs: performance.now() - stepStart,
+          durationMs,
         });
+        if (panel) {
+          await panel.stepPassed(scenarioId, stepIdx, durationMs);
+        }
       } catch (error) {
+        const durationMs = performance.now() - stepStart;
         stepResults.push({
           description: step.description,
           status: 'failed',
-          durationMs: performance.now() - stepStart,
+          durationMs,
         });
         testStatus = 'failed';
+        const errMsg = error instanceof Error ? error.message : String(error);
+        if (panel) {
+          await panel.stepFailed(scenarioId, stepIdx, errMsg);
+        }
         // Screenshot on failure (browser mode only)
         let screenshot: string | undefined;
         if (ctx instanceof BrowserContext) {
           screenshot = await ctx.screenshot(testCase.id);
         }
         testError = {
-          message: error instanceof Error ? error.message : String(error),
+          message: errMsg,
           ...(error instanceof Error && error.stack && { stack: error.stack }),
           ...(screenshot && { screenshot }),
         };
@@ -336,6 +397,10 @@ export class TestRunner {
 
     // Mark remaining steps as skipped
     for (let i = stepResults.length; i < testCase.steps.length; i++) {
+      if (panel) {
+        await panel.addStep(scenarioId, testCase.steps[i]!.description);
+        await panel.stepSkipped(scenarioId, i);
+      }
       stepResults.push({
         description: testCase.steps[i]!.description,
         status: 'skipped',
@@ -484,5 +549,10 @@ export class TestRunner {
       return Math.max(1, cpus().length - 1);
     }
     return this.options.workers;
+  }
+
+  /** Sanitize a test ID for use as an HTML element ID. */
+  private sanitizeId(id: string): string {
+    return id.replace(/[^a-zA-Z0-9]/g, '-').replace(/-+/g, '-');
   }
 }

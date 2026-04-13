@@ -23,6 +23,10 @@ describe('BrowserContext', () => {
       waitForNavigation: async () => null,
       setViewport: async () => {},
       screenshot: async () => Buffer.from(''),
+      bringToFront: async () => {},
+      frames: () => [],
+      mainFrame: () => ({}),
+      accessibility: { snapshot: async () => null },
     } as any;
   }
 

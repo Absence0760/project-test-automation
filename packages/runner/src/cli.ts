@@ -105,6 +105,7 @@ async function main(): Promise<void> {
     dryRun: !!values['dry-run'],
     slowMs: values.slow ? Number(values.slow) : 0,
     keepOpen: !!values['keep-open'],
+    headed: !!values.headed,
   });
   const results = await runner.run();
 
