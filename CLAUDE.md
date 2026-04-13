@@ -64,17 +64,20 @@ cargo build --release -p bettertest-cli
 # Run CLI in dev
 cargo run -p bettertest-cli -- --help
 
-# Start demo app
+# Start demo app (Terminal 1)
 pnpm demo                    # http://localhost:3000
 
-# Run tests against demo app (real browser)
+# Run tests against demo app — headless (Terminal 2)
 pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --verbose
 
-# Run tests headed (watch Chrome)
-pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --headed --verbose
+# Run tests headed — watch Chrome step by step, browser stays open
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --headed --slow 3000 --keep-open --verbose
 
 # Run tests dry-run (no browser)
 pnpm exec tsx packages/runner/src/cli.ts --testDir examples --dry-run --verbose
+
+# Run with retries (flaky detection)
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --retries 2 --verbose
 ```
 
 ## Conventions
