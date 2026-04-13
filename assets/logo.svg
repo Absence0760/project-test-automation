@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" fill="none">
+  <defs>
+    <linearGradient id="shield-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="check-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0fdf4"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background circle -->
+  <circle cx="200" cy="200" r="190" fill="#0a0a0a"/>
+  <circle cx="200" cy="200" r="188" fill="none" stroke="#1a1a1a" stroke-width="2"/>
+
+  <!-- Shield shape -->
+  <path d="M200 45 L330 110 L330 220 C330 290 270 345 200 370 C130 345 70 290 70 220 L70 110 Z"
+        fill="url(#shield-gradient)" opacity="0.15"/>
+  <path d="M200 45 L330 110 L330 220 C330 290 270 345 200 370 C130 345 70 290 70 220 L70 110 Z"
+        fill="none" stroke="url(#shield-gradient)" stroke-width="3" opacity="0.8"/>
+
+  <!-- Inner shield accent -->
+  <path d="M200 75 L305 128 L305 215 C305 272 255 318 200 340 C145 318 95 272 95 215 L95 128 Z"
+        fill="none" stroke="url(#shield-gradient)" stroke-width="1" opacity="0.3"/>
+
+  <!-- Checkmark — bold, offset for dynamism -->
+  <g filter="url(#glow)">
+    <path d="M130 205 L178 258 L278 148"
+          fill="none" stroke="url(#check-gradient)" stroke-width="22"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+
+  <!-- Small accent dots representing test nodes in the execution graph -->
+  <circle cx="120" cy="135" r="5" fill="#4ade80" opacity="0.5"/>
+  <circle cx="155" cy="115" r="4" fill="#22d3ee" opacity="0.4"/>
+  <circle cx="250" cy="108" r="5" fill="#4ade80" opacity="0.5"/>
+  <circle cx="285" cy="132" r="4" fill="#22d3ee" opacity="0.4"/>
+
+  <!-- Connecting lines between dots (execution graph hint) -->
+  <line x1="120" y1="135" x2="155" y2="115" stroke="#4ade80" stroke-width="1" opacity="0.25"/>
+  <line x1="155" y1="115" x2="250" y2="108" stroke="#22d3ee" stroke-width="1" opacity="0.25"/>
+  <line x1="250" y1="108" x2="285" y2="132" stroke="#4ade80" stroke-width="1" opacity="0.25"/>
+</svg>

@@ -1,0 +1,44 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Node
+node_modules/
+.pnpm-store/
+dist/
+*.tsbuildinfo
+
+# Build artifacts
+*.node
+*.dylib
+*.so
+*.dll
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Test artifacts
+coverage/
+test-results/
+playwright-report/
+
+# Svelte
+.svelte-kit/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

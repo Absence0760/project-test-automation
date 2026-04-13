@@ -1,0 +1,21 @@
+{
+  "name": "better-test-automation",
+  "private": true,
+  "description": "Next-generation test automation platform — test intelligence, not just browser automation",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.2",
+    "typescript": "^6.0.2"
+  },
+  "packageManager": "pnpm@10.8.1",
+  "engines": {
+    "node": ">=22"
+  }
+}
