@@ -29,6 +29,7 @@ interface StepState {
   status: 'pending' | 'running' | 'passed' | 'failed' | 'skipped';
   durationMs: number;
   error?: string;
+  snapshotId?: string;
 }
 
 interface Stats {
@@ -45,11 +46,16 @@ export class PanelState {
   private stats: Stats = { passed: 0, failed: 0, total: 0, durationMs: 0 };
   private enabled: boolean;
   private server: Server | null = null;
+  private snapshots = new Map<string, string>();
+  private serverPort = 0;
+  private appBaseUrl = '';
 
-  constructor(panelPage: Page | null, enabled: boolean, server?: Server) {
+  constructor(panelPage: Page | null, enabled: boolean, server?: Server, port = 0, appBaseUrl = '') {
     this.panelPage = panelPage;
     this.enabled = enabled;
     this.server = server ?? null;
+    this.serverPort = port;
+    this.appBaseUrl = appBaseUrl;
   }
 
   /**
@@ -81,7 +87,8 @@ export class PanelState {
     // Find the iframe frame
     const appFrame = await waitForAppFrame(page);
 
-    const panel = new PanelState(page, true, server);
+    const panel = new PanelState(page, true, server, port, appBaseUrl);
+    activePanelRef = panel;
     return { panel, appFrame, page };
   }
 
@@ -126,16 +133,45 @@ export class PanelState {
     await this.render();
   }
 
-  async stepPassed(scenarioId: string, stepIdx: number, durationMs: number): Promise<void> {
+  async stepPassed(scenarioId: string, stepIdx: number, durationMs: number, frame?: Frame): Promise<void> {
     const step = this.scenarios.find((s) => s.id === scenarioId)?.steps[stepIdx];
-    if (step) { step.status = 'passed'; step.durationMs = durationMs; }
+    if (step) {
+      step.status = 'passed';
+      step.durationMs = durationMs;
+      if (frame) {
+        const snapshotId = `${scenarioId}-${stepIdx}`;
+        step.snapshotId = snapshotId;
+        await this.captureSnapshot(snapshotId, frame);
+      }
+    }
     await this.render();
   }
 
-  async stepFailed(scenarioId: string, stepIdx: number, errorMsg: string): Promise<void> {
+  async stepFailed(scenarioId: string, stepIdx: number, errorMsg: string, frame?: Frame): Promise<void> {
     const step = this.scenarios.find((s) => s.id === scenarioId)?.steps[stepIdx];
-    if (step) { step.status = 'failed'; step.error = errorMsg; }
+    if (step) {
+      step.status = 'failed';
+      step.error = errorMsg;
+      if (frame) {
+        const snapshotId = `${scenarioId}-${stepIdx}`;
+        step.snapshotId = snapshotId;
+        await this.captureSnapshot(snapshotId, frame);
+      }
+    }
     await this.render();
+  }
+
+  /** Capture the current DOM from the iframe frame. */
+  private async captureSnapshot(id: string, frame: Frame): Promise<void> {
+    try {
+      const html = await frame.content();
+      this.snapshots.set(id, html);
+    } catch { /* frame might be navigating */ }
+  }
+
+  /** Get a stored snapshot by ID (used by the server). */
+  getSnapshot(id: string): string | undefined {
+    return this.snapshots.get(id);
   }
 
   async stepSkipped(scenarioId: string, stepIdx: number): Promise<void> {
@@ -166,7 +202,11 @@ export class PanelState {
       scenariosHtml += `<span class="bd">${scenario.durationMs > 0 ? Math.round(scenario.durationMs) + 'ms' : ''}</span>`;
       scenariosHtml += '</div><div class="bst">';
       for (const step of scenario.steps) {
-        scenariosHtml += `<div class="bs ${step.status}">`;
+        const clickable = step.snapshotId ? ' clickable' : '';
+        const onclick = step.snapshotId
+          ? ` onclick="document.getElementById('bta-app').src='http://127.0.0.1:${this.serverPort}/snapshot/${encodeURIComponent(step.snapshotId)}'; document.getElementById('bta-resume').style.display='block';"`
+          : '';
+        scenariosHtml += `<div class="bs ${step.status}${clickable}"${onclick}>`;
         const pre = stepPre[step.status] || '';
         if (pre) scenariosHtml += `<span class="si">${pre}</span>`;
         scenariosHtml += esc(step.description);
@@ -179,6 +219,7 @@ export class PanelState {
 
     try {
       // Pass pre-built HTML strings to avoid function serialization issues
+      const resumeUrl = this.appBaseUrl || 'about:blank';
       await this.panelPage.evaluate(`
         document.getElementById('bta-sn').textContent = ${JSON.stringify(state.suiteName)};
         document.getElementById('bta-sc').innerHTML = ${JSON.stringify(scenariosHtml)};
@@ -187,6 +228,14 @@ export class PanelState {
         document.getElementById('bta-f').textContent = ${JSON.stringify(String(state.stats.failed))};
         document.getElementById('bta-t').textContent = ${JSON.stringify(String(state.stats.total))};
         document.getElementById('bta-d').textContent = ${JSON.stringify(Math.round(state.stats.durationMs) + 'ms')};
+        if (!document.getElementById('bta-resume')) {
+          var btn = document.createElement('button');
+          btn.id = 'bta-resume';
+          btn.textContent = '\\u25B6 Resume Live';
+          btn.style.cssText = 'display:none;margin:8px 14px;padding:6px 12px;background:#4ade80;color:#0a0a0a;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;';
+          btn.onclick = function() { document.getElementById('bta-app').src = ${JSON.stringify(resumeUrl)}; this.style.display = 'none'; };
+          document.getElementById('bta-hdr').appendChild(btn);
+        }
       `);
     } catch (err) { /* panel page closed */ }
   }
@@ -199,9 +248,29 @@ function esc(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+/** Reference to the active panel, so the server can access snapshots. */
+let activePanelRef: PanelState | null = null;
+
 async function startPanelServer(html: string): Promise<{ port: number; server: Server }> {
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
+      const url = new URL(req.url ?? '/', 'http://localhost');
+
+      // Serve a DOM snapshot
+      if (url.pathname.startsWith('/snapshot/')) {
+        const id = decodeURIComponent(url.pathname.slice('/snapshot/'.length));
+        const snapshot = activePanelRef?.getSnapshot(id);
+        if (snapshot) {
+          res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+          res.end(snapshot);
+        } else {
+          res.writeHead(404);
+          res.end('Snapshot not found');
+        }
+        return;
+      }
+
+      // Default: serve the panel shell
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(html);
     });
@@ -268,6 +337,7 @@ body{display:flex}
 .bf{color:#f87171;font-weight:600}
 .bt{color:#888}
 .bv{color:#666}
+.bs.clickable{cursor:pointer}.bs.clickable:hover{background:rgba(255,255,255,.05)}
 #bta-app{flex:1;border:none;height:100vh}
 </style></head><body>
 <div id="bta-sidebar">

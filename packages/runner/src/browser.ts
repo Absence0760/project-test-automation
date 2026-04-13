@@ -34,6 +34,11 @@ export class BrowserContext implements StepContext {
     this.screenshotDir = join(process.cwd(), 'test-results', 'screenshots');
   }
 
+  /** Get the current app frame (for DOM snapshot capture). */
+  getAppFrame(): Frame | undefined {
+    return this.appFrame ?? undefined;
+  }
+
   /** Configure for panel mode: DOM queries target the iframe, navigation changes iframe src. */
   setupPanel(panelPage: Page, appFrame: Frame): void {
     this.panelPage = panelPage;

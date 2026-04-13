@@ -367,7 +367,8 @@ export class TestRunner {
           durationMs,
         });
         if (panel) {
-          await panel.stepPassed(scenarioId, stepIdx, durationMs);
+          const frame = ctx instanceof BrowserContext ? ctx.getAppFrame() : undefined;
+          await panel.stepPassed(scenarioId, stepIdx, durationMs, frame);
         }
       } catch (error) {
         const durationMs = performance.now() - stepStart;
@@ -379,7 +380,8 @@ export class TestRunner {
         testStatus = 'failed';
         const errMsg = error instanceof Error ? error.message : String(error);
         if (panel) {
-          await panel.stepFailed(scenarioId, stepIdx, errMsg);
+          const frame = ctx instanceof BrowserContext ? ctx.getAppFrame() : undefined;
+          await panel.stepFailed(scenarioId, stepIdx, errMsg, frame);
         }
         // Screenshot on failure (browser mode only)
         let screenshot: string | undefined;
