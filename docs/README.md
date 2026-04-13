@@ -2,6 +2,7 @@
 
 ## Getting Started
 
+- **[Installation](installation.md)** — Install via npm, curl, cargo, or direct download. CI/CD examples.
 - **[Local Testing Guide](local-testing.md)** — Prerequisites, setup, building, running tests, CLI usage, Ollama setup, troubleshooting
 
 ## Architecture & Design

@@ -17,6 +17,7 @@ Next-generation test automation platform. Not just browser automation — a **te
 - `@bettertest/ai` — AI layer (local LLM via Ollama + optional cloud)
 - `@bettertest/reporter` — Reporting (HTML, JSON, JUnit) + Flakey integration
 - `@bettertest/selectors` — Semantic selector TypeScript API
+- `@bettertest/cli` — npm CLI wrapper (downloads + launches the Rust binary)
 
 ### Apps (`apps/`)
 - `dashboard` — Svelte reporting/analytics dashboard
@@ -77,6 +78,7 @@ When working on a specific area, read the relevant doc for full context:
 - `docs/semantic-selectors.md` — how the selector engine works, confidence scoring, healing connection
 - `docs/roadmap.md` — phased milestones with checklists (check what's done vs TODO)
 - `docs/competitor-grid.md` — feature comparison vs Cypress/Playwright/WebdriverIO/Selenium
+- `docs/installation.md` — install methods (npm, curl, cargo, manual), CI/CD examples
 - `docs/local-testing.md` — build/test/run commands, Ollama setup, troubleshooting
 
 ## Competitive Moats (Keep These Central)
