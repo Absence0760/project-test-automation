@@ -29,7 +29,20 @@ This distinction drives every architectural decision.
 │  @bettertest/ai        — local/cloud LLM integration    │
 │  @bettertest/reporter  — console, HTML, JSON, JUnit     │
 └───────────────────────────┬─────────────────────────────┘
-                            │ NAPI-RS bridge
+                            │ puppeteer-core (CDP)
+┌───────────────────────────▼─────────────────────────────┐
+│                    Browser + Panel UI                    │
+│                                                         │
+│  ┌── Panel (sidebar) ──┐  ┌── App (iframe) ──────────┐ │
+│  │  Test picker         │  │  App under test           │ │
+│  │  Live step updates   │  │  (navigates freely)       │ │
+│  │  Pause/Stop/Replay   │  │                           │ │
+│  │  DOM time-travel     │  │  Semantic selectors       │ │
+│  │  Results + stats     │  │  resolve here via CDP     │ │
+│  └──────────────────────┘  └───────────────────────────┘ │
+│  Panel page NEVER navigates — state held in Node.js      │
+└───────────────────────────┬─────────────────────────────┘
+                            │ (future: NAPI-RS bridge)
 ┌───────────────────────────▼─────────────────────────────┐
 │                      Rust Core Engine                    │
 │                                                         │

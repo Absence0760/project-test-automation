@@ -12,7 +12,7 @@ Next-generation test automation platform. Not just browser automation — a **te
 - `bettertest-napi` — Node.js native bindings via NAPI-RS
 
 ### TypeScript Packages (`packages/`)
-- `@bettertest/runner` — Test runner orchestration
+- `@bettertest/runner` — Test runner orchestration, browser launcher, panel UI, selector resolution
 - `@bettertest/bdd` — First-class Gherkin/BDD engine (custom parser, not Cucumber-JS)
 - `@bettertest/ai` — AI layer (local LLM via Ollama + optional cloud)
 - `@bettertest/reporter` — Reporting (HTML, JSON, JUnit) + Flakey integration
@@ -67,16 +67,17 @@ cargo run -p bettertest-cli -- --help
 # Start demo app (Terminal 1)
 pnpm demo                    # http://localhost:3000
 
-# Run tests against demo app — headless (Terminal 2)
+# Headed mode — interactive test picker + panel UI (Terminal 2)
+# Opens Chrome with sidebar: pick scenarios, watch execution, time-travel snapshots
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --headed --slow 1000 --keep-open --verbose
+
+# Headless mode — auto-runs all tests, no browser window
 pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --verbose
 
-# Run tests headed — watch Chrome step by step, browser stays open
-pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --headed --slow 3000 --keep-open --verbose
-
-# Run tests dry-run (no browser)
+# Dry-run — no browser, logs what each step would do
 pnpm exec tsx packages/runner/src/cli.ts --testDir examples --dry-run --verbose
 
-# Run with retries (flaky detection)
+# With retries (flaky detection)
 pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --retries 2 --verbose
 ```
 

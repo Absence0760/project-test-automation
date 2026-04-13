@@ -115,13 +115,17 @@ Polish the developer experience and build the ecosystem integrations.
 
 ### Milestone 3.1: CLI & TUI (Weeks 20-24)
 
-- [ ] Interactive TUI dashboard (Ratatui) — live test status, timing, flakiness
+- [x] Interactive panel UI — Cypress-style sidebar in headed Chrome with live step updates
+- [x] Test picker — select features/scenarios to run, play button per feature
+- [x] Execution controls — pause, resume, stop buttons with visual feedback
+- [x] DOM snapshot time-travel — click a step to view page state at that moment
+- [x] Step replay — re-run individual steps from the history panel
+- [x] Run loop — after a run, review results, then "Back to Tests" to pick more
 - [ ] Watch mode — re-run affected tests on file change
 - [ ] `bettertest init` — scaffold a new project (templates: minimal, bdd, full)
 - [ ] `bettertest check` — lint/validate test files before running
 - [ ] `bettertest generate` — generate tests from session recordings
 - [ ] Colorized, grouped terminal output with progress bars
-- [ ] `--ui` flag to open TUI instead of streaming output
 
 ### Milestone 3.2: Reporters & Dashboard (Weeks 22-26)
 

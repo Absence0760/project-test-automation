@@ -482,7 +482,7 @@ export class TestRunner {
       }
 
       try {
-        const timeoutMs = step.timeoutMs ?? this.options.timeoutMs;
+        const timeoutMs = (step.timeoutMs ?? this.options.timeoutMs) + this.slowMs;
         let timer: ReturnType<typeof setTimeout>;
         const timeoutPromise = new Promise<never>((_, reject) => {
           timer = setTimeout(

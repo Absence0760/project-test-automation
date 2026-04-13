@@ -247,24 +247,19 @@ Valid credentials: `user@example.com` / `correct-password`
 ### Run tests against it
 
 ```bash
-# Headless (default) — Chrome runs invisibly
+# Headed mode — interactive panel UI (recommended for development)
+# Opens Chrome with a Cypress-style sidebar: pick scenarios, watch execution,
+# time-travel DOM snapshots, pause/stop/replay individual steps
 pnpm exec tsx packages/runner/src/cli.ts \
   --testDir examples \
   --base-url http://localhost:3000 \
+  --headed --slow 1000 --keep-open \
   --verbose
 
-# Headed — watch Chrome execute the tests in real time
+# Headless — auto-runs all tests, no browser window (CI mode)
 pnpm exec tsx packages/runner/src/cli.ts \
   --testDir examples \
   --base-url http://localhost:3000 \
-  --headed --slow 3000 --keep-open \
-  --verbose
-
-# Headed without slow-motion (runs fast, browser stays open)
-pnpm exec tsx packages/runner/src/cli.ts \
-  --testDir examples \
-  --base-url http://localhost:3000 \
-  --headed --keep-open \
   --verbose
 
 # Dry-run — no browser, just log what would happen
@@ -281,15 +276,31 @@ pnpm exec tsx packages/runner/src/cli.ts \
   --verbose
 ```
 
+### Headed mode — interactive panel
+
+In headed mode (`--headed`), the browser opens with a **Cypress-style sidebar panel** on the left and the app under test in an iframe on the right.
+
+**Flow:**
+1. **Test picker** — all discovered features/scenarios shown with checkboxes (unchecked by default)
+2. Check individual scenarios or click the **▶ play button** next to a feature to select all its scenarios
+3. Click **"Run Selected"** — tests execute with real-time step updates in the sidebar
+4. **During execution** — use Pause, Resume, Stop buttons. Click the **↻ replay icon** on any completed step to re-run just that step.
+5. **After execution** — results stay visible. Click any step to **time-travel**: the iframe loads the DOM snapshot from that moment. Click **"Resume Live"** to go back to the live app.
+6. Click **"← Back to Tests"** to return to the test picker and run more scenarios.
+
+### Headless mode
+
+In headless mode (default, no `--headed`), all discovered tests run automatically and the process exits with results. No browser window. This is the mode for CI/CD.
+
 ### CLI flags
 
 | Flag | Description |
 |------|-------------|
 | `--testDir <path>` | Directory containing `.feature` and `.steps.ts` files |
 | `--base-url <url>` | Base URL of the app under test |
-| `--headed` | Run with a visible Chrome window (maximized, brought to front) |
-| `--headless` | Run Chrome invisibly (default) |
-| `--slow <ms>` | Pause between steps so you can watch (e.g., `--slow 3000` for 3s) |
+| `--headed` | Interactive mode: panel UI, test picker, time-travel, pause/stop |
+| `--headless` | Auto-run all tests, no browser window (default) |
+| `--slow <ms>` | Pause between steps so you can watch (e.g., `--slow 1000` for 1s) |
 | `--keep-open` | Keep the browser open after tests finish (press Ctrl+C to close) |
 | `--dry-run` | No browser — log actions only |
 | `--retries <n>` | Retry failed tests up to N times (marks as `flaky` if pass on retry) |
