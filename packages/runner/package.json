@@ -22,9 +22,10 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@bettertest/selectors": "workspace:*",
     "@bettertest/bdd": "workspace:*",
-    "@bettertest/reporter": "workspace:*"
+    "@bettertest/reporter": "workspace:*",
+    "@bettertest/selectors": "workspace:*",
+    "puppeteer-core": "^24.40.0"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

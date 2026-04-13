@@ -224,6 +224,87 @@ pnpm format:check
 
 ---
 
+## Running Tests Against the Demo App
+
+The demo app (`apps/demo/`) is a simple login/dashboard web app that matches the `examples/login.feature` scenarios. This is the fastest way to see the full pipeline in action with a real browser.
+
+**Prerequisites:** Google Chrome must be installed on your system.
+
+### Start the demo app
+
+```bash
+pnpm demo                    # http://localhost:3000
+# or on a different port
+PORT=3001 pnpm demo
+```
+
+Pages:
+- `/login` — Login form (email + password, error states, account lockout)
+- `/dashboard` — Dashboard with welcome message
+
+Valid credentials: `user@example.com` / `correct-password`
+
+### Run tests against it
+
+```bash
+# Headless (default) — Chrome runs invisibly
+pnpm exec tsx packages/runner/src/cli.ts \
+  --testDir examples \
+  --base-url http://localhost:3000 \
+  --verbose
+
+# Headed — watch Chrome execute the tests
+pnpm exec tsx packages/runner/src/cli.ts \
+  --testDir examples \
+  --base-url http://localhost:3000 \
+  --headed \
+  --verbose
+
+# Dry-run — no browser, just log what would happen
+pnpm exec tsx packages/runner/src/cli.ts \
+  --testDir examples \
+  --dry-run \
+  --verbose
+```
+
+### CLI flags
+
+| Flag | Description |
+|------|-------------|
+| `--testDir <path>` | Directory containing `.feature` and `.steps.ts` files |
+| `--base-url <url>` | Base URL of the app under test |
+| `--headed` | Run with a visible Chrome window |
+| `--headless` | Run Chrome invisibly (default) |
+| `--dry-run` | No browser — log actions only |
+| `--tags <tags>` | Comma-separated tag filter (e.g., `@smoke,@auth`) |
+| `--failFast` | Stop on first failure |
+| `-v, --verbose` | Show each action the context performs |
+| `-c, --config <path>` | Path to config file |
+
+### What the 4 scenarios test
+
+| Scenario | What happens in the browser |
+|----------|---------------------------|
+| Successful login | Navigate → fill email + password → click Sign in → assert dashboard heading + welcome message |
+| Invalid password | Fill wrong password → click → assert "Invalid email or password" error |
+| Account lockout | 5 failed logins → assert "Account locked" message |
+| Accessible form | Assert email/password labels exist and are visible |
+
+### How semantic selectors resolve
+
+The test steps use plain English selectors like `"the submit button"` and `"the email input"`. The `BrowserContext` resolves these against the live DOM using:
+
+1. ARIA labels (`aria-label="Email address"`)
+2. Label text (`<label>Email address</label>` → follows `for` to the input)
+3. Button/heading text content
+4. Role attributes (`role="alert"`) — prefers visible elements
+5. Placeholder text
+6. ID heuristics
+
+If an element isn't found immediately, it retries 5 times with 200ms intervals (handles async DOM updates).
+
+---
+
 ## Testing the Gherkin Parser
 
 The BDD parser can be tested directly without a browser. This is a good starting point for development:
@@ -276,14 +357,17 @@ cargo test -p bettertest-core -- selector
 # - Confidence scoring
 ```
 
-To test against a real browser (once the protocol layer is implemented):
+To test against a real browser using the demo app:
 
 ```bash
-# Start your app
-cd your-app && npm run dev
+# Terminal 1: Start the demo app
+pnpm demo
 
-# Run Better Test Automation against it
-cargo run -p bettertest-cli -- run --base-url http://localhost:3000
+# Terminal 2: Run tests against it (headless)
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --verbose
+
+# Or headed — watch Chrome execute the tests
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --headed --verbose
 ```
 
 ---
@@ -361,10 +445,12 @@ export default defineConfig({
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `BETTERTEST_LOG` | `info` | Log level: `trace`, `debug`, `info`, `warn`, `error` |
+| `CHROME_PATH` | (auto-detect) | Path to Chrome binary (overrides auto-detection) |
 | `BETTERTEST_BROWSER` | `chromium` | Default browser |
 | `BETTERTEST_HEADLESS` | `true` | Run browser headless |
 | `BETTERTEST_BASE_URL` | — | Override config `baseUrl` |
 | `BETTERTEST_WORKERS` | `auto` | Override worker count |
+| `PORT` | `3000` | Port for the demo app |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama endpoint |
 
 ---
@@ -384,7 +470,8 @@ better-test-automation/
 │   ├── reporter/      # @bettertest/reporter — HTML, JSON, JUnit
 │   └── selectors/     # @bettertest/selectors — semantic selector API
 ├── apps/
-│   └── dashboard/     # Svelte reporting dashboard
+│   ├── dashboard/     # Svelte reporting dashboard
+│   └── demo/          # Demo login/dashboard app for testing
 ├── examples/          # Example tests, features, and config
 └── docs/              # Documentation
 ```
@@ -423,6 +510,40 @@ SvelteKit generates its tsconfig on first build. Run the build first:
 pnpm --filter @bettertest/dashboard build
 # or
 cd apps/dashboard && npx svelte-kit sync
+```
+
+### Chrome not found
+
+The browser launcher auto-detects Chrome on macOS, Linux, and Windows. If it can't find it:
+
+```bash
+# Set the path explicitly
+CHROME_PATH="/path/to/chrome" pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000
+```
+
+Common paths:
+- **macOS**: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
+- **Linux**: `/usr/bin/google-chrome` or `/usr/bin/chromium`
+- **Windows**: `C:\Program Files\Google\Chrome\Application\chrome.exe`
+
+### Chrome "SingletonLock" error
+
+If Chrome crashes or gets killed, it can leave a lock file:
+
+```bash
+rm -f .bettertest/chrome-profile/SingletonLock
+```
+
+The launcher cleans this up automatically on next run, but if you see the error immediately after a crash, delete it manually.
+
+### Port 3000 already in use
+
+```bash
+# Use a different port for the demo app
+PORT=3001 pnpm demo
+
+# Then point tests at it
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3001
 ```
 
 ### Ollama connection refused

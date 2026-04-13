@@ -21,11 +21,12 @@ Next-generation test automation platform. Not just browser automation — a **te
 
 ### Apps (`apps/`)
 - `dashboard` — Svelte reporting/analytics dashboard
+- `demo` — Demo login/dashboard web app for testing against
 
 ## Key Technical Decisions
 - **Runtime**: Node.js + Rust hybrid (TS for authoring, Rust for performance-critical paths)
 - **Browser Protocol**: WebDriver BiDi (W3C standard) with CDP fallback
-- **No Chromium bundling** — uses system browser or connects via protocol
+- **No Chromium bundling** — uses system Chrome via CDP (puppeteer-core), no bundled browser
 - **BDD is first-class** — native Gherkin parser, not a plugin
 - **Semantic selectors** — select by intent ("click the submit button") not DOM structure
 - **Self-healing** — broken selectors are auto-detected and fix-proposed via DOM diffing
@@ -62,6 +63,18 @@ cargo build --release -p bettertest-cli
 
 # Run CLI in dev
 cargo run -p bettertest-cli -- --help
+
+# Start demo app
+pnpm demo                    # http://localhost:3000
+
+# Run tests against demo app (real browser)
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --verbose
+
+# Run tests headed (watch Chrome)
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://localhost:3000 --headed --verbose
+
+# Run tests dry-run (no browser)
+pnpm exec tsx packages/runner/src/cli.ts --testDir examples --dry-run --verbose
 ```
 
 ## Conventions
