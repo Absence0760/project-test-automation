@@ -28,6 +28,7 @@ import { DryRunContext } from './context.js';
 import { BrowserContext } from './browser.js';
 import { launchBrowser, type LaunchResult } from './launcher.js';
 import { createReporters, notifyAll } from './reporters.js';
+import { SelectorCache } from './selector-cache.js';
 
 /**
  * The main test runner.
@@ -119,11 +120,15 @@ export class TestRunner {
     let launch: LaunchResult | null = null;
     let ctx: DryRunContext | BrowserContext;
 
+    let selectorCache: SelectorCache | undefined;
+
     if (this.dryRun) {
       ctx = new DryRunContext(this.config.baseUrl, this.verbose);
     } else {
       launch = await launchBrowser(this.config.browser);
-      ctx = new BrowserContext(launch.page, this.config.baseUrl, this.verbose);
+      selectorCache = new SelectorCache(resolve(process.cwd(), this.config.selectors.cachePath));
+      await selectorCache.load();
+      ctx = new BrowserContext(launch.page, this.config.baseUrl, this.verbose, selectorCache);
     }
 
     const allResults: TestResult[] = [];
@@ -149,7 +154,29 @@ export class TestRunner {
         if (aborted) break;
 
         ctx.reset();
-        const result = await this.executeTest(testCase, suite.name, registry, ctx);
+        let result = await this.executeTest(testCase, suite.name, registry, ctx);
+
+        // Retry logic: if test failed and retries are configured, re-run
+        if (result.status === 'failed' && this.options.retries > 0) {
+          for (let retry = 1; retry <= this.options.retries; retry++) {
+            ctx.reset();
+            const retryResult = await this.executeTest(testCase, suite.name, registry, ctx);
+            if (retryResult.status === 'passed') {
+              // Passed on retry — mark as flaky
+              result = {
+                ...retryResult,
+                status: 'flaky',
+                flakiness: {
+                  classification: 'unknown',
+                  explanation: `Passed on retry ${retry} of ${this.options.retries} (failed on first attempt)`,
+                },
+              };
+              break;
+            }
+            result = retryResult;
+          }
+        }
+
         allResults.push(result);
 
         const testReport: TestReport = {
@@ -211,6 +238,9 @@ export class TestRunner {
     return allResults;
 
     } finally {
+      if (selectorCache) {
+        await selectorCache.save();
+      }
       if (launch) {
         await launch.close();
       }
@@ -318,14 +348,62 @@ export class TestRunner {
   // ─── Private: Discovery Helpers ─────────────────────────────
 
   private featureToSuite(feature: Feature): TestSuite {
+    const tests: TestCase[] = [];
+    for (const scenario of feature.scenarios) {
+      if (scenario.examples && scenario.examples.length > 0) {
+        // Scenario Outline — expand into one TestCase per Examples row
+        tests.push(...this.expandScenarioOutline(scenario, feature));
+      } else {
+        tests.push(this.scenarioToTestCase(scenario, feature));
+      }
+    }
     return {
       name: feature.name,
       filePath: feature.filePath,
       tags: feature.tags,
-      tests: feature.scenarios.map((scenario) =>
-        this.scenarioToTestCase(scenario, feature),
-      ),
+      tests,
     };
+  }
+
+  /**
+   * Expand a Scenario Outline with Examples into concrete TestCases.
+   * Each row in the Examples table produces one TestCase, with <placeholders>
+   * in step text replaced by the row's values.
+   */
+  private expandScenarioOutline(scenario: Scenario, feature: Feature): TestCase[] {
+    const cases: TestCase[] = [];
+
+    for (const table of scenario.examples!) {
+      for (let rowIdx = 0; rowIdx < table.rows.length; rowIdx++) {
+        const row = table.rows[rowIdx]!;
+        const substitutions = new Map<string, string>();
+        for (let colIdx = 0; colIdx < table.headers.length; colIdx++) {
+          substitutions.set(table.headers[colIdx]!, row[colIdx]!);
+        }
+
+        // Build a concrete scenario with placeholders replaced
+        const backgroundSteps: Step[] = feature.background?.steps ?? [];
+        const expandedSteps = [...backgroundSteps, ...scenario.steps].map((step) => ({
+          ...step,
+          text: this.substitutePlaceholders(step.text, substitutions),
+        }));
+
+        const rowLabel = row.join(', ');
+        cases.push({
+          id: `${feature.filePath}::${scenario.name} [${rowLabel}]`,
+          name: `${scenario.name} (${rowLabel})`,
+          tags: scenario.tags,
+          dependsOn: [],
+          steps: expandedSteps.map((step) => this.stepToTestStep(step)),
+        });
+      }
+    }
+
+    return cases;
+  }
+
+  private substitutePlaceholders(text: string, subs: Map<string, string>): string {
+    return text.replace(/<(\w+)>/g, (_match, key: string) => subs.get(key) ?? `<${key}>`);
   }
 
   private scenarioToTestCase(scenario: Scenario, feature: Feature): TestCase {

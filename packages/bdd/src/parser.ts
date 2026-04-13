@@ -55,6 +55,7 @@ export class GherkinParser {
     let inDocString = false;
     let docStringContent = '';
     let inDescription = false;
+    let inExamples = false;
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i]!;
@@ -133,6 +134,7 @@ export class GherkinParser {
         pendingTags = [];
         feature.scenarios.push(currentScenario);
         inDescription = false;
+        inExamples = false;
         continue;
       }
 
@@ -147,25 +149,40 @@ export class GherkinParser {
         continue;
       }
 
-      // Examples table
+      // Examples table (Scenario Outline)
       if (trimmed.startsWith('Examples:') && currentScenario) {
-        // Next lines will be table rows — handled by data table parsing
+        inExamples = true;
         continue;
       }
 
-      // Data table rows
+      // Data table rows — could be step data table or Examples table
       if (trimmed.startsWith('|') && currentScenario) {
         const cells = trimmed
           .split('|')
           .slice(1, -1)
           .map((c) => c.trim());
 
-        const lastStep = currentScenario.steps.at(-1);
-        if (lastStep) {
-          if (!lastStep.dataTable) {
-            lastStep.dataTable = { headers: cells, rows: [] };
+        if (inExamples) {
+          // Attach to the scenario's examples array
+          if (!currentScenario.examples) {
+            currentScenario.examples = [];
+          }
+          const lastTable = currentScenario.examples.at(-1);
+          if (!lastTable) {
+            // First row after Examples: is always headers
+            currentScenario.examples.push({ headers: cells, rows: [] });
           } else {
-            lastStep.dataTable.rows.push(cells);
+            lastTable.rows.push(cells);
+          }
+        } else {
+          // Step data table
+          const lastStep = currentScenario.steps.at(-1);
+          if (lastStep) {
+            if (!lastStep.dataTable) {
+              lastStep.dataTable = { headers: cells, rows: [] };
+            } else {
+              lastStep.dataTable.rows.push(cells);
+            }
           }
         }
       }
