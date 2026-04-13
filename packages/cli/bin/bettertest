@@ -1,0 +1,63 @@
+#!/usr/bin/env node
+
+/**
+ * Thin launcher that executes the native Rust binary.
+ * Falls back to a helpful error if the binary wasn't downloaded.
+ */
+
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const binName = process.platform === 'win32' ? 'bettertest.exe' : 'bettertest';
+
+// Look for the native binary next to this script (downloaded by postinstall)
+const nativeBin = join(__dirname, binName);
+
+// Also check if it's on PATH (installed via cargo or direct download)
+function findOnPath() {
+  try {
+    const which = process.platform === 'win32' ? 'where' : 'which';
+    const result = execFileSync(which, ['bettertest'], {
+      encoding: 'utf-8',
+      stdio: ['pipe', 'pipe', 'pipe'],
+    }).trim();
+    // Don't use ourselves
+    if (result && result !== process.argv[1]) {
+      return result;
+    }
+  } catch {
+    // Not found on PATH
+  }
+  return null;
+}
+
+let binary = null;
+
+if (existsSync(nativeBin)) {
+  binary = nativeBin;
+} else {
+  binary = findOnPath();
+}
+
+if (!binary) {
+  console.error(
+    'bettertest: native binary not found.\n' +
+      '\n' +
+      'The postinstall script may have failed to download it.\n' +
+      'Try reinstalling or use an alternative method:\n' +
+      '\n' +
+      '  npm install -g @bettertest/cli\n' +
+      '  curl -fsSL https://raw.githubusercontent.com/jaredhoward/better-test-automation/main/scripts/install.sh | sh\n' +
+      '  cargo install bettertest-cli\n',
+  );
+  process.exit(1);
+}
+
+try {
+  execFileSync(binary, process.argv.slice(2), { stdio: 'inherit' });
+} catch (error) {
+  process.exit(error.status ?? 1);
+}

@@ -1,0 +1,35 @@
+{
+  "name": "@bettertest/cli",
+  "version": "0.1.0",
+  "description": "Better Test Automation — next-gen test intelligence platform CLI",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "bettertest": "bin/bettertest",
+    "bta": "bin/bettertest"
+  },
+  "scripts": {
+    "postinstall": "node src/postinstall.js"
+  },
+  "files": [
+    "bin/",
+    "src/postinstall.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jaredhoward/better-test-automation"
+  },
+  "keywords": [
+    "testing",
+    "test-automation",
+    "e2e",
+    "bdd",
+    "gherkin",
+    "semantic-selectors",
+    "self-healing",
+    "flakiness"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
