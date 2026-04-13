@@ -1,0 +1,22 @@
+[package]
+name = "bettertest-cli"
+description = "Better Test Automation CLI and TUI — beautiful terminal interface for test automation"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "bettertest"
+path = "src/main.rs"
+
+[dependencies]
+bettertest-core = { path = "../core" }
+tokio.workspace = true
+clap.workspace = true
+ratatui.workspace = true
+crossterm.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+serde.workspace = true
+serde_json.workspace = true

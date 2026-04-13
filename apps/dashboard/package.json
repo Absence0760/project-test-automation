@@ -1,0 +1,30 @@
+{
+  "name": "@bettertest/dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Better Test Automation reporting and analytics dashboard — Flakey integration",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@bettertest/reporter": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-auto": "^7.0.1",
+    "@sveltejs/kit": "^2.57.1",
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "@types/node": "^25.6.0",
+    "prettier-plugin-svelte": "^3.5.1",
+    "svelte": "^5.55.3",
+    "svelte-check": "^4.0.0",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.8",
+    "vitest": "^4.1.4"
+  }
+}

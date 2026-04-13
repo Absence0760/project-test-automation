@@ -1,0 +1,398 @@
+# Local Testing Guide
+
+How to set up, build, and test Better Test Automation on your machine.
+
+---
+
+## Prerequisites
+
+| Tool | Version | Install |
+|------|---------|---------|
+| **Node.js** | >= 22 | [nodejs.org](https://nodejs.org) or `brew install node` |
+| **pnpm** | >= 10 | `npm install -g pnpm` or `brew install pnpm` |
+| **Rust** | >= 1.85 (edition 2024) | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| **Ollama** (optional) | latest | [ollama.com](https://ollama.com) — only needed for AI features |
+
+Verify your setup:
+
+```bash
+node --version    # v22.x+
+pnpm --version    # 10.x+
+rustc --version   # 1.85.0+
+cargo --version   # 1.85.0+
+```
+
+---
+
+## Initial Setup
+
+```bash
+# Clone the repo
+git clone https://github.com/jaredhoward/better-test-automation.git
+cd better-test-automation
+
+# Install TypeScript dependencies
+pnpm install
+
+# Build Rust crates (first build downloads + compiles dependencies, ~2-3 min)
+cargo build
+```
+
+---
+
+## Building
+
+### Rust crates
+
+```bash
+# Debug build (fast compile, slow runtime)
+cargo build
+
+# Release build (slow compile, fast runtime)
+cargo build --release
+
+# Build a specific crate
+cargo build -p bettertest-core
+cargo build -p bettertest-cli
+cargo build -p bettertest-napi
+```
+
+### TypeScript packages
+
+```bash
+# Build all packages
+pnpm build
+
+# Build a specific package
+pnpm --filter @bettertest/runner build
+pnpm --filter @bettertest/bdd build
+pnpm --filter @bettertest/ai build
+pnpm --filter @bettertest/reporter build
+pnpm --filter @bettertest/selectors build
+```
+
+### Dashboard
+
+```bash
+# Dev server with hot reload
+pnpm --filter @bettertest/dashboard dev
+
+# Production build
+pnpm --filter @bettertest/dashboard build
+
+# Preview production build
+pnpm --filter @bettertest/dashboard preview
+```
+
+---
+
+## Running Tests
+
+### Rust unit tests
+
+```bash
+# Run all Rust tests
+cargo test
+
+# Run tests for a specific crate
+cargo test -p bettertest-core
+
+# Run a specific test by name
+cargo test -p bettertest-core -- selector::accessibility::tests::parse_button_intent
+
+# Run tests with output visible
+cargo test -- --nocapture
+
+# Run only the execution graph tests
+cargo test -p bettertest-core -- executor::graph::tests
+```
+
+### TypeScript unit tests
+
+```bash
+# Run all TS tests across packages
+pnpm test
+
+# Run tests for a specific package
+pnpm --filter @bettertest/runner test
+pnpm --filter @bettertest/bdd test
+
+# Watch mode (re-run on file changes)
+pnpm --filter @bettertest/runner test:watch
+
+# Run with coverage
+pnpm --filter @bettertest/runner test -- --coverage
+```
+
+### Type checking
+
+```bash
+# Check all packages
+pnpm typecheck
+
+# Check a specific package
+pnpm --filter @bettertest/runner typecheck
+```
+
+---
+
+## Running the CLI
+
+```bash
+# Run in dev mode (compiles + runs)
+cargo run -p bettertest-cli -- --help
+cargo run -p bettertest-cli -- run
+cargo run -p bettertest-cli -- run --tag @smoke
+cargo run -p bettertest-cli -- flaky --runs 50
+cargo run -p bettertest-cli -- init --template bdd
+
+# With verbose logging
+cargo run -p bettertest-cli -- -v run
+
+# After building release, run the binary directly
+cargo build --release -p bettertest-cli
+./target/release/bettertest run
+```
+
+---
+
+## Linting & Formatting
+
+### Rust
+
+```bash
+# Lint with Clippy (treats warnings as errors)
+cargo clippy -- -D warnings
+
+# Auto-format
+cargo fmt
+
+# Check formatting without applying
+cargo fmt -- --check
+```
+
+### TypeScript
+
+```bash
+# Lint all packages
+pnpm lint
+
+# Format all files
+pnpm format
+
+# Check formatting without applying
+pnpm format:check
+```
+
+---
+
+## Testing the Gherkin Parser
+
+The BDD parser can be tested directly without a browser. This is a good starting point for development:
+
+```typescript
+// Quick test — paste into a scratch file and run with tsx
+import { GherkinParser } from '@bettertest/bdd';
+
+const parser = new GherkinParser();
+
+const feature = parser.parse(`
+@smoke
+Feature: User Login
+  As a user I want to log in
+
+  Scenario: Successful login
+    Given the user is on the login page
+    When they enter valid credentials
+    And they click the submit button
+    Then they should see the dashboard
+`, 'login.feature');
+
+console.log(JSON.stringify(feature, null, 2));
+```
+
+Run it:
+
+```bash
+# After building
+npx tsx test-parser.ts
+
+# Or run the existing example
+npx tsx examples/login.steps.ts
+```
+
+---
+
+## Testing Semantic Selectors (Without a Browser)
+
+The selector resolution logic can be unit-tested with mock DOM/accessibility trees:
+
+```bash
+# Run the Rust selector tests
+cargo test -p bettertest-core -- selector
+
+# These tests cover:
+# - Intent parsing ("the submit button" -> role: button, name: "submit")
+# - Accessibility-first resolution
+# - Multi-strategy fallback
+# - Confidence scoring
+```
+
+To test against a real browser (once the protocol layer is implemented):
+
+```bash
+# Start your app
+cd your-app && npm run dev
+
+# Run Better Test Automation against it
+cargo run -p bettertest-cli -- run --base-url http://localhost:3000
+```
+
+---
+
+## Testing the NAPI Bridge
+
+The NAPI bindings connect Rust → Node.js. After building:
+
+```bash
+# Build the native module
+cargo build -p bettertest-napi
+
+# The .node file will be in target/debug/
+# Test it from Node.js:
+node -e "
+  const napi = require('./target/debug/libbettertest_napi.node');
+  console.log(napi.createSelector('the submit button', null));
+  console.log(napi.parseAccessibilityIntent('the email input field'));
+"
+```
+
+---
+
+## Testing the Dashboard
+
+```bash
+# Start the dev server
+pnpm --filter @bettertest/dashboard dev
+# Opens at http://localhost:5173
+
+# Run dashboard tests
+pnpm --filter @bettertest/dashboard test
+
+# Type check the Svelte components
+pnpm --filter @bettertest/dashboard typecheck
+```
+
+---
+
+## Setting Up Ollama (AI Features)
+
+The AI layer uses Ollama for local LLM inference. This is optional — the test runner works without it.
+
+```bash
+# Install Ollama
+brew install ollama    # macOS
+# or download from https://ollama.com
+
+# Start the server
+ollama serve
+
+# Pull a model (llama3 is the default in bettertest.config.ts)
+ollama pull llama3
+
+# Verify it's running
+curl http://localhost:11434/api/tags
+```
+
+Configure in `bettertest.config.ts`:
+
+```typescript
+export default defineConfig({
+  ai: {
+    provider: 'local',
+    model: 'llama3',        // or any Ollama model
+    endpoint: 'http://localhost:11434',
+  },
+});
+```
+
+---
+
+## Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `BETTERTEST_LOG` | `info` | Log level: `trace`, `debug`, `info`, `warn`, `error` |
+| `BETTERTEST_BROWSER` | `chromium` | Default browser |
+| `BETTERTEST_HEADLESS` | `true` | Run browser headless |
+| `BETTERTEST_BASE_URL` | — | Override config `baseUrl` |
+| `BETTERTEST_WORKERS` | `auto` | Override worker count |
+| `OLLAMA_HOST` | `http://localhost:11434` | Ollama endpoint |
+
+---
+
+## Project Structure Quick Reference
+
+```
+better-test-automation/
+├── crates/
+│   ├── core/          # Rust core — protocol, selectors, executor, healing
+│   ├── cli/           # CLI binary (bettertest command)
+│   └── napi/          # Node.js native bindings
+├── packages/
+│   ├── runner/        # @bettertest/runner — test orchestration
+│   ├── bdd/           # @bettertest/bdd — Gherkin parser + steps
+│   ├── ai/            # @bettertest/ai — local/cloud AI
+│   ├── reporter/      # @bettertest/reporter — HTML, JSON, JUnit
+│   └── selectors/     # @bettertest/selectors — semantic selector API
+├── apps/
+│   └── dashboard/     # Svelte reporting dashboard
+├── examples/          # Example tests, features, and config
+└── docs/              # Documentation
+```
+
+---
+
+## Troubleshooting
+
+### `cargo build` fails with "edition 2024 is unsupported"
+
+Your Rust toolchain is too old. Update:
+
+```bash
+rustup update stable
+rustc --version   # should be >= 1.85.0
+```
+
+### `pnpm install` fails with workspace resolution errors
+
+Make sure you're running pnpm v10+:
+
+```bash
+pnpm --version
+npm install -g pnpm@latest
+```
+
+### NAPI build fails
+
+The NAPI crate requires Node.js headers. Ensure Node.js >= 22 is installed and in your PATH.
+
+### Dashboard `typecheck` fails on first run
+
+SvelteKit generates its tsconfig on first build. Run the build first:
+
+```bash
+pnpm --filter @bettertest/dashboard build
+# or
+cd apps/dashboard && npx svelte-kit sync
+```
+
+### Ollama connection refused
+
+Make sure the Ollama server is running:
+
+```bash
+ollama serve
+# In another terminal:
+curl http://localhost:11434/api/tags
+```

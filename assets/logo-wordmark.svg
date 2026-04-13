@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 200" fill="none">
+  <defs>
+    <linearGradient id="wm-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4ade80"/>
+      <stop offset="100%" stop-color="#22d3ee"/>
+    </linearGradient>
+    <linearGradient id="wm-check" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#f0fdf4"/>
+    </linearGradient>
+    <filter id="wm-glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Mark — compact shield + check -->
+  <g transform="translate(10, 10)">
+    <!-- Shield -->
+    <path d="M80 5 L150 38 L150 92 C150 130 118 155 80 168 C42 155 10 130 10 92 L10 38 Z"
+          fill="url(#wm-gradient)" opacity="0.15"/>
+    <path d="M80 5 L150 38 L150 92 C150 130 118 155 80 168 C42 155 10 130 10 92 L10 38 Z"
+          fill="none" stroke="url(#wm-gradient)" stroke-width="2.5" opacity="0.8"/>
+
+    <!-- Checkmark -->
+    <g filter="url(#wm-glow)">
+      <path d="M48 90 L72 117 L118 62"
+            fill="none" stroke="url(#wm-check)" stroke-width="12"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+
+    <!-- Graph dots -->
+    <circle cx="30" cy="30" r="3" fill="#4ade80" opacity="0.5"/>
+    <circle cx="50" cy="20" r="2.5" fill="#22d3ee" opacity="0.4"/>
+    <circle cx="112" cy="18" r="3" fill="#4ade80" opacity="0.5"/>
+    <circle cx="133" cy="32" r="2.5" fill="#22d3ee" opacity="0.4"/>
+    <line x1="30" y1="30" x2="50" y2="20" stroke="#4ade80" stroke-width="0.8" opacity="0.25"/>
+    <line x1="50" y1="20" x2="112" y2="18" stroke="#22d3ee" stroke-width="0.8" opacity="0.25"/>
+    <line x1="112" y1="18" x2="133" y2="32" stroke="#4ade80" stroke-width="0.8" opacity="0.25"/>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="190" y="85" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="48" font-weight="700" fill="#e0e0e0">
+    Better Test
+  </text>
+  <text x="190" y="145" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="48" font-weight="700" fill="url(#wm-gradient)">
+    Automation
+  </text>
+
+  <!-- Tagline -->
+  <text x="192" y="175" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif" font-size="14" fill="#888" letter-spacing="0.15em">
+    TEST INTELLIGENCE PLATFORM
+  </text>
+</svg>
