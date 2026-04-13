@@ -10,7 +10,9 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
     "run:example": "tsx packages/runner/src/cli.ts --testDir examples",
-    "run:example:verbose": "tsx packages/runner/src/cli.ts --testDir examples --verbose"
+    "run:example:verbose": "tsx packages/runner/src/cli.ts --testDir examples --verbose",
+    "demo": "tsx apps/demo/server.ts",
+    "demo:watch": "tsx --watch apps/demo/server.ts"
   },
   "devDependencies": {
     "prettier": "^3.8.2",

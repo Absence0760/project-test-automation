@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Demo App</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0a0a0a;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .card {
+      background: #1a1a1a;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 2.5rem;
+      width: 100%;
+      max-width: 400px;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .subtitle { color: #888; margin-bottom: 2rem; font-size: 0.9rem; }
+    .field { margin-bottom: 1.25rem; }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: #aaa;
+      margin-bottom: 0.4rem;
+    }
+    input {
+      width: 100%;
+      padding: 0.7rem 0.9rem;
+      background: #0a0a0a;
+      border: 1px solid #444;
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: #4ade80; }
+    button[type="submit"] {
+      width: 100%;
+      padding: 0.75rem;
+      background: #4ade80;
+      color: #0a0a0a;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-top: 0.5rem;
+    }
+    button[type="submit"]:hover { background: #22c55e; }
+    button[type="submit"]:disabled { background: #333; color: #666; cursor: not-allowed; }
+    .error {
+      background: #2d1111;
+      border: 1px solid #f87171;
+      color: #f87171;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: none;
+      font-size: 0.9rem;
+    }
+    .error.visible { display: block; }
+    .locked {
+      background: #2d2211;
+      border: 1px solid #fbbf24;
+      color: #fbbf24;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      display: none;
+      font-size: 0.9rem;
+    }
+    .locked.visible { display: block; }
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>Welcome back</h1>
+    <p class="subtitle">Sign in to your account</p>
+
+    <div class="error" role="alert" aria-live="polite" id="error-message"></div>
+    <div class="locked" role="alert" aria-live="polite" id="locked-message"></div>
+
+    <form id="login-form" role="form" aria-label="Login">
+      <div class="field">
+        <label for="email">Email address</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          placeholder="you@example.com"
+          aria-label="Email address"
+          required
+          autocomplete="email"
+        />
+      </div>
+
+      <div class="field">
+        <label for="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          placeholder="Enter your password"
+          aria-label="Password"
+          required
+          autocomplete="current-password"
+        />
+      </div>
+
+      <button type="submit" id="submit-btn">Sign in</button>
+    </form>
+  </main>
+
+  <script>
+    const VALID_EMAIL = 'user@example.com';
+    const VALID_PASSWORD = 'correct-password';
+    const MAX_ATTEMPTS = 5;
+    const LOCKOUT_MINUTES = 15;
+
+    let failedAttempts = 0;
+    let lockedUntil = null;
+
+    const form = document.getElementById('login-form');
+    const errorEl = document.getElementById('error-message');
+    const lockedEl = document.getElementById('locked-message');
+    const submitBtn = document.getElementById('submit-btn');
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      // Clear previous messages
+      errorEl.classList.remove('visible');
+      errorEl.textContent = '';
+
+      // Check lockout
+      if (lockedUntil && Date.now() < lockedUntil) {
+        return;
+      }
+
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      if (email === VALID_EMAIL && password === VALID_PASSWORD) {
+        // Success — redirect to dashboard
+        window.location.href = '/dashboard?user=' + encodeURIComponent(email);
+        return;
+      }
+
+      // Failed attempt
+      failedAttempts++;
+
+      if (failedAttempts >= MAX_ATTEMPTS) {
+        // Lock the account
+        lockedUntil = Date.now() + LOCKOUT_MINUTES * 60 * 1000;
+        lockedEl.textContent = `Account locked. Try again in ${LOCKOUT_MINUTES} minutes.`;
+        lockedEl.classList.add('visible');
+        submitBtn.disabled = true;
+        errorEl.classList.remove('visible');
+        return;
+      }
+
+      errorEl.textContent = 'Invalid email or password';
+      errorEl.classList.add('visible');
+    });
+  </script>
+</body>
+</html>
