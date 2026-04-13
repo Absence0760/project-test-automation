@@ -152,50 +152,52 @@ export class PanelState {
   private async render(): Promise<void> {
     if (!this.enabled || !this.panelPage) return;
     const state = { suiteName: this.suiteName, scenarios: this.scenarios, stats: this.stats };
+    // Build HTML in Node.js to avoid tsx __name compilation issues in page.evaluate
+    const icons: Record<string, string> = { pending: '\u25CB', running: '\u25B6', passed: '\u2713', failed: '\u2717' };
+    const stepPre: Record<string, string> = { passed: '\u2713 ', failed: '\u2717 ', skipped: '\u2013 ', running: '', pending: '' };
+
+    let scenariosHtml = '';
+    for (const scenario of state.scenarios) {
+      const collapsed = scenario.status === 'passed' ? ' collapsed' : '';
+      scenariosHtml += `<div class="bsc${collapsed}">`;
+      scenariosHtml += `<div class="bsh ${scenario.status}" onclick="this.parentElement.classList.toggle('collapsed')">`;
+      scenariosHtml += `<span class="bi">${icons[scenario.status] || '\u25CB'}</span>`;
+      scenariosHtml += `<span>${esc(scenario.name)}</span>`;
+      scenariosHtml += `<span class="bd">${scenario.durationMs > 0 ? Math.round(scenario.durationMs) + 'ms' : ''}</span>`;
+      scenariosHtml += '</div><div class="bst">';
+      for (const step of scenario.steps) {
+        scenariosHtml += `<div class="bs ${step.status}">`;
+        const pre = stepPre[step.status] || '';
+        if (pre) scenariosHtml += `<span class="si">${pre}</span>`;
+        scenariosHtml += esc(step.description);
+        if (step.durationMs > 0) scenariosHtml += ` <span class="bm">${Math.round(step.durationMs)}ms</span>`;
+        scenariosHtml += '</div>';
+        if (step.error) scenariosHtml += `<div class="be">${esc(step.error)}</div>`;
+      }
+      scenariosHtml += '</div></div>';
+    }
+
     try {
-      await this.panelPage.evaluate((s) => {
-        const esc = (t: string) => { const d = document.createElement('div'); d.textContent = t; return d.innerHTML; };
-        const icons: Record<string, string> = { pending: '\u25CB', running: '\u25B6', passed: '\u2713', failed: '\u2717' };
-        const stepPre: Record<string, string> = { passed: '\u2713 ', failed: '\u2717 ', skipped: '\u2013 ', running: '', pending: '' };
-
-        const sn = document.getElementById('bta-sn');
-        if (sn) sn.textContent = s.suiteName;
-
-        const sc = document.getElementById('bta-sc')!;
-        let html = '';
-        for (const scenario of s.scenarios) {
-          const collapsed = scenario.status === 'passed' ? ' collapsed' : '';
-          html += '<div class="bsc' + collapsed + '">';
-          html += '<div class="bsh ' + scenario.status + '" onclick="this.parentElement.classList.toggle(\'collapsed\')">';
-          html += '<span class="bi">' + (icons[scenario.status] || '\u25CB') + '</span>';
-          html += '<span>' + esc(scenario.name) + '</span>';
-          html += '<span class="bd">' + (scenario.durationMs > 0 ? Math.round(scenario.durationMs) + 'ms' : '') + '</span>';
-          html += '</div><div class="bst">';
-          for (const step of scenario.steps) {
-            html += '<div class="bs ' + step.status + '">';
-            const pre = stepPre[step.status] || '';
-            if (pre) html += '<span class="si">' + pre + '</span>';
-            html += esc(step.description);
-            if (step.durationMs > 0) html += ' <span class="bm">' + Math.round(step.durationMs) + 'ms</span>';
-            html += '</div>';
-            if (step.error) html += '<div class="be">' + esc(step.error) + '</div>';
-          }
-          html += '</div></div>';
-        }
-        sc.innerHTML = html;
-        sc.scrollTop = sc.scrollHeight;
-
-        const set = (id: string, v: string | number) => { const e = document.getElementById(id); if (e) e.textContent = String(v); };
-        set('bta-p', s.stats.passed);
-        set('bta-f', s.stats.failed);
-        set('bta-t', s.stats.total);
-        set('bta-d', Math.round(s.stats.durationMs) + 'ms');
-      }, state);
-    } catch { /* page closed */ }
+      // Pass pre-built HTML strings to avoid function serialization issues
+      await this.panelPage.evaluate(`
+        document.getElementById('bta-sn').textContent = ${JSON.stringify(state.suiteName)};
+        document.getElementById('bta-sc').innerHTML = ${JSON.stringify(scenariosHtml)};
+        document.getElementById('bta-sc').scrollTop = document.getElementById('bta-sc').scrollHeight;
+        document.getElementById('bta-p').textContent = ${JSON.stringify(String(state.stats.passed))};
+        document.getElementById('bta-f').textContent = ${JSON.stringify(String(state.stats.failed))};
+        document.getElementById('bta-t').textContent = ${JSON.stringify(String(state.stats.total))};
+        document.getElementById('bta-d').textContent = ${JSON.stringify(Math.round(state.stats.durationMs) + 'ms')};
+      `);
+    } catch (err) { /* panel page closed */ }
   }
 }
 
 // ─── Helpers ──────────────────────────────────────────────
+
+/** HTML-escape a string (runs in Node.js, not browser). */
+function esc(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
 
 async function startPanelServer(html: string): Promise<{ port: number; server: Server }> {
   return new Promise((resolve) => {
