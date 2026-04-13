@@ -37,8 +37,10 @@ export class TestRunner {
   private options: RunnerOptions;
   private parser = new GherkinParser();
   private importedStepFiles = new Set<string>();
+  private verbose: boolean;
 
-  constructor(config: BetterTestConfig) {
+  constructor(config: BetterTestConfig, runtimeOpts?: { verbose?: boolean }) {
+    this.verbose = runtimeOpts?.verbose ?? false;
     this.config = config;
     this.options = {
       workers: config.runner.workers ?? 'auto',
@@ -109,7 +111,7 @@ export class TestRunner {
 
     // Execute
     const registry = getGlobalRegistry();
-    const ctx = new DryRunContext(this.config.baseUrl);
+    const ctx = new DryRunContext(this.config.baseUrl, this.verbose);
     const allResults: TestResult[] = [];
     const suiteReports: SuiteReport[] = [];
     let aborted = false;
