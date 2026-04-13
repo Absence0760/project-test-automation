@@ -14,6 +14,7 @@ async function main(): Promise<void> {
       testDir: { type: 'string' },
       tags: { type: 'string', short: 't' },
       failFast: { type: 'boolean', default: false },
+      verbose: { type: 'boolean', short: 'v', default: false },
       help: { type: 'boolean', short: 'h' },
     },
     strict: false,
@@ -30,6 +31,7 @@ async function main(): Promise<void> {
     --testDir <path>      Override test directory
     -t, --tags <tags>     Comma-separated tag filter (e.g., @smoke,@auth)
     --failFast            Stop on first failure
+    -v, --verbose         Show each action the dry-run context performs
     -h, --help            Show this help
 `);
     return;
@@ -68,7 +70,7 @@ async function main(): Promise<void> {
   const config = defineConfig(userConfig);
 
   // Run
-  const runner = new TestRunner(config);
+  const runner = new TestRunner(config, { verbose: !!values.verbose });
   const results = await runner.run();
 
   const failures = results.filter((r) => r.status === 'failed').length;

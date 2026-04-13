@@ -13,8 +13,9 @@ export class DryRunContext implements StepContext {
   private actionLog: string[] = [];
   private baseUrl: string;
 
-  constructor(baseUrl?: string) {
+  constructor(baseUrl?: string, verbose = false) {
     this.baseUrl = baseUrl ?? '';
+    this.verbose = verbose;
   }
 
   async navigate(url: string): Promise<void> {
@@ -57,8 +58,17 @@ export class DryRunContext implements StepContext {
     return [...this.actionLog];
   }
 
+  private verbose: boolean;
+
+  setVerbose(verbose: boolean): void {
+    this.verbose = verbose;
+  }
+
   private log(action: string, detail: string): void {
     const entry = `[${action}] ${detail}`;
     this.actionLog.push(entry);
+    if (this.verbose) {
+      console.log(`        ${entry}`);
+    }
   }
 }
