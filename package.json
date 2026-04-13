@@ -8,10 +8,12 @@
     "lint": "pnpm -r lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "run:example": "tsx packages/runner/src/cli.ts --testDir examples"
   },
   "devDependencies": {
     "prettier": "^3.8.2",
+    "tsx": "^4.21.0",
     "typescript": "^6.0.2"
   },
   "packageManager": "pnpm@10.8.1",

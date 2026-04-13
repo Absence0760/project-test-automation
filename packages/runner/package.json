@@ -11,6 +11,9 @@
       "types": "./dist/index.d.ts"
     }
   },
+  "bin": {
+    "bettertest-run": "dist/cli.js"
+  },
   "scripts": {
     "build": "tsc",
     "test": "vitest run",

@@ -68,12 +68,14 @@ export class StepRegistry {
         // Exact match or parameterized match
         const paramPattern = def.pattern.replace(
           /\{(\w+)}/g,
-          '(?<$1>[^\\s]+)',
+          '(?<$1>"[^"]*"|[^\\s]+)',
         );
         const regex = new RegExp(`^${paramPattern}$`);
         const match = text.match(regex);
         if (match) {
-          const args = Object.values(match.groups ?? {});
+          const args = Object.values(match.groups ?? {}).map((a) =>
+            a.replace(/^"|"$/g, ''),
+          );
           return { definition: def, args };
         }
       } else {
@@ -95,8 +97,12 @@ export class StepRegistry {
   }
 }
 
-// Global registry instance
-const globalRegistry = new StepRegistry();
+// Global registry instance — stored on globalThis to survive ESM dual-instance scenarios
+// (e.g., when step files and runner resolve @bettertest/bdd to different module copies)
+const REGISTRY_KEY = Symbol.for('bettertest:step-registry');
+const globalRegistry: StepRegistry =
+  (globalThis as Record<symbol, StepRegistry>)[REGISTRY_KEY] ??
+  ((globalThis as Record<symbol, StepRegistry>)[REGISTRY_KEY] = new StepRegistry());
 
 /** Register a Given step definition. */
 export function Given(pattern: string | RegExp, handler: StepHandler): void {
