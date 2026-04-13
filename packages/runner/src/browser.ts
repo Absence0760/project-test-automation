@@ -18,20 +18,31 @@ export class BrowserContext implements StepContext {
   private verbose: boolean;
   private screenshotDir: string;
   private stepIndex = 0;
-  private selectorCache?: SelectorCache;
+  private selectorCache: SelectorCache | undefined;
+  private slowMs: number;
 
-  constructor(page: Page, baseUrl?: string, verbose = false, selectorCache?: SelectorCache) {
-    this.selectorCache = selectorCache;
+  constructor(page: Page, baseUrl?: string, verbose = false, selectorCache?: SelectorCache, slowMs = 0) {
+    this.selectorCache = selectorCache ?? undefined;
     this.page = page;
     this.baseUrl = baseUrl ?? '';
     this.verbose = verbose;
+    this.slowMs = slowMs;
     this.screenshotDir = join(process.cwd(), 'test-results', 'screenshots');
+  }
+
+  /** Pause between actions so you can watch in headed mode. */
+  private async slow(): Promise<void> {
+    if (this.slowMs > 0) {
+      await new Promise((r) => setTimeout(r, this.slowMs));
+    }
   }
 
   async navigate(url: string): Promise<void> {
     const resolved = url.startsWith('http') ? url : `${this.baseUrl}${url}`;
     this.log('navigate', resolved);
+    await this.page.bringToFront();
     await this.page.goto(resolved, { waitUntil: 'networkidle0', timeout: 10_000 });
+    await this.slow();
   }
 
   async click(selector: string): Promise<void> {
@@ -48,6 +59,7 @@ export class BrowserContext implements StepContext {
     await navPromise;
     // Brief pause for JS DOM updates (form validation, error messages)
     await new Promise((r) => setTimeout(r, 100));
+    await this.slow();
   }
 
   async fill(selector: string, value: string): Promise<void> {
@@ -56,6 +68,7 @@ export class BrowserContext implements StepContext {
     // Triple-click to select all, then type to replace
     await el.click({ count: 3 });
     await el.type(value);
+    await this.slow();
   }
 
   async assertVisible(selector: string): Promise<void> {
@@ -157,9 +170,9 @@ export class BrowserContext implements StepContext {
       }
     }
 
-    // Full resolution with retries
+    // Full resolution with retries (a11y tree only on first attempt)
     for (let attempt = 0; attempt <= retries; attempt++) {
-      const result = await this.tryResolve(intent);
+      const result = await this.tryResolve(intent, attempt === 0);
       if (result) {
         // Cache the successful resolution
         if (this.selectorCache) {
@@ -189,10 +202,16 @@ export class BrowserContext implements StepContext {
     );
   }
 
-  private async tryResolve(intent: string): Promise<ElementHandle<Element> | null> {
+  private async tryResolve(intent: string, useA11yTree = true): Promise<ElementHandle<Element> | null> {
     const keywords = this.extractKeywords(intent);
 
-    // 1. ARIA label match
+    // 0. Accessibility tree — single CDP call, walk in memory (first attempt only)
+    if (useA11yTree) {
+      const a11yMatch = await this.findByAccessibilityTree(intent, keywords);
+      if (a11yMatch) return a11yMatch;
+    }
+
+    // 1. ARIA label match (DOM fallback)
     const ariaMatch = await this.findByAriaLabel(keywords);
     if (ariaMatch) return ariaMatch;
 
@@ -232,6 +251,157 @@ export class BrowserContext implements StepContext {
       .toLowerCase()
       .split(/\s+/)
       .filter((w) => !stopWords.has(w) && w.length > 1);
+  }
+
+  /**
+   * Resolve via the browser's accessibility tree.
+   *
+   * One CDP call gets the full tree — then we walk it in memory to find
+   * the best-matching node. This is how screen readers see the page.
+   *
+   * The a11y tree gives us role + name for every element, which maps
+   * directly to semantic selectors like "the submit button" (role=button, name~=submit).
+   */
+  private async findByAccessibilityTree(
+    intent: string,
+    keywords: string[],
+  ): Promise<ElementHandle<Element> | null> {
+    try {
+      // Timeout the snapshot call — it can hang during navigation
+      const snapshot = await Promise.race([
+        this.page.accessibility.snapshot({ interestingOnly: false }),
+        new Promise<null>((r) => setTimeout(() => r(null), 500)),
+      ]);
+      if (!snapshot) return null;
+
+      // Infer the target role from the intent
+      const targetRole = this.inferRole(intent);
+
+      // Walk the tree to find matching nodes, scored by relevance
+      const matches = this.walkA11yTree(snapshot, keywords, targetRole);
+      if (matches.length === 0) return null;
+
+      // Sort by score descending, pick the best
+      matches.sort((a, b) => b.score - a.score);
+      const best = matches[0]!;
+
+      // Convert the a11y match back to a DOM element
+      return this.a11yNodeToElement(best);
+    } catch {
+      // accessibility.snapshot() can fail on some pages — fall through to DOM strategies
+      return null;
+    }
+  }
+
+  /** Infer the ARIA role from the intent text. */
+  private inferRole(intent: string): string | null {
+    const lower = intent.toLowerCase();
+    if (lower.includes('button') || lower.includes('submit')) return 'button';
+    if (lower.includes('input') || lower.includes('field')) return 'textbox';
+    if (lower.includes('link')) return 'link';
+    if (lower.includes('heading') || lower.includes('title')) return 'heading';
+    if (lower.includes('menu') || lower.includes('nav')) return 'navigation';
+    if (lower.includes('checkbox') || lower.includes('toggle')) return 'checkbox';
+    if (lower.includes('dropdown') || lower.includes('select')) return 'combobox';
+    if (lower.includes('alert') || lower.includes('error') || lower.includes('message')) return 'alert';
+    if (lower.includes('label')) return 'LabelText';
+    return null;
+  }
+
+  /** Accessibility tree node from puppeteer's snapshot. */
+  private walkA11yTree(
+    node: A11yNode,
+    keywords: string[],
+    targetRole: string | null,
+    depth = 0,
+  ): A11yMatch[] {
+    const matches: A11yMatch[] = [];
+    const name = (node.name ?? '').toLowerCase();
+    const role = (node.role ?? '').toLowerCase();
+
+    let score = 0;
+
+    // Role match
+    if (targetRole && role === targetRole.toLowerCase()) {
+      score += 3;
+    }
+
+    // Name keyword match
+    for (const kw of keywords) {
+      if (name.includes(kw)) {
+        score += 2;
+      }
+    }
+
+    // Special: "label" intent — match StaticText or LabelText roles
+    if (targetRole === 'LabelText' && (role === 'statictext' || role === 'labeltext' || role === 'label')) {
+      score += 2;
+    }
+
+    // Bonus for focused or interactive elements
+    if (node.focused) score += 1;
+
+    // Only include if there's some match
+    if (score > 0) {
+      matches.push({ node, score, depth });
+    }
+
+    // Recurse into children
+    if (node.children) {
+      for (const child of node.children) {
+        matches.push(...this.walkA11yTree(child, keywords, targetRole, depth + 1));
+      }
+    }
+
+    return matches;
+  }
+
+  /** Convert an a11y tree match back to a real DOM element. */
+  private async a11yNodeToElement(match: A11yMatch): Promise<ElementHandle<Element> | null> {
+    const { node } = match;
+    const name = node.name ?? '';
+    const role = (node.role ?? '').toLowerCase();
+
+    // Strategy 1: use ARIA role + name to build a selector
+    if (role && name) {
+      // Try puppeteer's built-in ARIA selector
+      const el = await this.page.$(`aria/${name}`).catch(() => null);
+      if (el) return el;
+    }
+
+    // Strategy 2: find by role attribute + text content
+    if (role === 'button' || role === 'link') {
+      const elements = await this.page.$$(role === 'button' ? 'button, [role="button"], input[type="submit"]' : 'a, [role="link"]');
+      for (const el of elements) {
+        const text = await el.evaluate((n) => (n.textContent ?? '').trim());
+        if (text.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(text.toLowerCase())) {
+          return el;
+        }
+      }
+    }
+
+    // Strategy 3: find by aria-label
+    if (name) {
+      const el = await this.page.$(`[aria-label="${name}"], [aria-label*="${name}"]`).catch(() => null);
+      if (el) return el;
+    }
+
+    // Strategy 4: for textbox role, find input with matching label
+    if (role === 'textbox' && name) {
+      const labels = await this.page.$$('label');
+      for (const label of labels) {
+        const text = await label.evaluate((n) => (n.textContent ?? '').trim().toLowerCase());
+        if (text.includes(name.toLowerCase())) {
+          const forId = await label.evaluate((n) => n.getAttribute('for'));
+          if (forId) {
+            const input = await this.page.$(`#${forId}`);
+            if (input) return input;
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   private async findByAriaLabel(keywords: string[]): Promise<ElementHandle<Element> | null> {
@@ -415,4 +585,22 @@ export class BrowserContext implements StepContext {
       console.log(`        ${entry}`);
     }
   }
+}
+
+// ─── Accessibility Tree Types ────────────────────────────────
+
+/** Puppeteer accessibility snapshot node (matches SerializedAXNode). */
+interface A11yNode {
+  role?: string;
+  name?: string;
+  value?: string | number;
+  focused?: boolean;
+  children?: A11yNode[];
+}
+
+/** A scored match from walking the accessibility tree. */
+interface A11yMatch {
+  node: A11yNode;
+  score: number;
+  depth: number;
 }
