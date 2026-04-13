@@ -92,6 +92,30 @@ describe('StepRegistry', () => {
     expect(result!.args).toEqual(['/login', '/dashboard']);
   });
 
+  it('matches quoted strings with spaces in {param} patterns', () => {
+    registry.register({
+      keyword: 'Then',
+      pattern: 'the error should say {message}',
+      handler: noop,
+    });
+
+    const result = registry.find('the error should say "Invalid email or password"');
+    expect(result).not.toBeNull();
+    expect(result!.args).toEqual(['Invalid email or password']);
+  });
+
+  it('strips quotes from captured {param} args', () => {
+    registry.register({
+      keyword: 'When',
+      pattern: 'they enter {value} in the {field} field',
+      handler: noop,
+    });
+
+    const result = registry.find('they enter "hello world" in the email field');
+    expect(result).not.toBeNull();
+    expect(result!.args).toEqual(['hello world', 'email']);
+  });
+
   it('handles string pattern with no params as exact match', () => {
     registry.register({
       keyword: 'Given',

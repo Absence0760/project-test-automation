@@ -6,6 +6,8 @@ export {
   Then,
   And,
   But,
+  getGlobalRegistry,
+  type StepContext,
   type StepDefinition,
   type StepHandler,
 } from './steps.js';
