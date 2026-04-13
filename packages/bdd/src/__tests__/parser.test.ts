@@ -167,6 +167,66 @@ Feature: Login`,
     expect(feature.scenarios[0]!.steps).toHaveLength(2);
   });
 
+  it('parses Scenario Outline with Examples table', () => {
+    const feature = parser.parse(
+      `Feature: Login
+
+  Scenario Outline: Login with <email>
+    Given the user enters "<email>"
+    And they enter "<password>"
+    When they submit the form
+
+    Examples:
+      | email          | password |
+      | alice@test.com | pass123  |
+      | bob@test.com   | secret   |`,
+      'login.feature',
+    );
+
+    const scenario = feature.scenarios[0]!;
+    expect(scenario.name).toBe('Login with <email>');
+    expect(scenario.steps).toHaveLength(3);
+    expect(scenario.examples).toBeDefined();
+    expect(scenario.examples).toHaveLength(1);
+    expect(scenario.examples![0]!.headers).toEqual(['email', 'password']);
+    expect(scenario.examples![0]!.rows).toHaveLength(2);
+    expect(scenario.examples![0]!.rows[0]).toEqual(['alice@test.com', 'pass123']);
+    expect(scenario.examples![0]!.rows[1]).toEqual(['bob@test.com', 'secret']);
+  });
+
+  it('keeps step data tables separate from Examples tables', () => {
+    const feature = parser.parse(
+      `Feature: Users
+
+  Scenario: With step data table
+    Given the following users exist
+      | name  | email |
+      | Alice | a@b   |
+
+  Scenario Outline: Login as <name>
+    Given the user logs in as "<name>"
+
+    Examples:
+      | name  |
+      | Alice |
+      | Bob   |`,
+      'test.feature',
+    );
+
+    // First scenario: step data table
+    const step = feature.scenarios[0]!.steps[0]!;
+    expect(step.dataTable).toBeDefined();
+    expect(step.dataTable!.headers).toEqual(['name', 'email']);
+
+    // Second scenario: examples table
+    const outline = feature.scenarios[1]!;
+    expect(outline.examples).toBeDefined();
+    expect(outline.examples![0]!.headers).toEqual(['name']);
+    expect(outline.examples![0]!.rows).toHaveLength(2);
+    // Steps should NOT have data tables
+    expect(outline.steps[0]!.dataTable).toBeUndefined();
+  });
+
   it('tracks line numbers for steps', () => {
     const feature = parser.parse(
       `Feature: Lines

@@ -15,6 +15,7 @@ async function main(): Promise<void> {
       'base-url': { type: 'string' },
       tags: { type: 'string', short: 't' },
       failFast: { type: 'boolean', default: false },
+      retries: { type: 'string' },
       'dry-run': { type: 'boolean', default: false },
       headed: { type: 'boolean', default: false },
       headless: { type: 'boolean', default: false },
@@ -36,6 +37,7 @@ async function main(): Promise<void> {
     --base-url <url>      Override base URL (e.g., http://localhost:3000)
     -t, --tags <tags>     Comma-separated tag filter (e.g., @smoke,@auth)
     --failFast            Stop on first failure
+    --retries <n>         Retry failed tests up to N times (flaky detection)
     --dry-run             Run without a browser (log actions only)
     --headed              Run with a visible browser window
     --headless            Run browser in headless mode (default)
@@ -77,6 +79,10 @@ async function main(): Promise<void> {
 
   if (values.failFast) {
     userConfig.runner = { ...userConfig.runner, failFast: true };
+  }
+
+  if (values.retries) {
+    userConfig.runner = { ...userConfig.runner, retries: Number(values.retries) };
   }
 
   // headed = visible browser, headless = invisible browser

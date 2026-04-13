@@ -23,9 +23,9 @@ The goal is a working test runner that can execute basic tests against a real br
 - [x] Intent parser — "the submit button in the login form" -> role + name + scope (keyword extraction + role inference)
 - [x] Accessibility-first resolution (ARIA labels, label text → linked input)
 - [x] NLP text matching fallback (button text, placeholders, headings, role text)
-- [ ] Visual/spatial heuristic fallback (position, proximity, size)
+- [x] Visual/spatial heuristic fallback (submit button at form bottom, message elements by text, inputs near labels)
 - [x] Multi-strategy resolver with auto-retry (6 strategies, 5 retries with 200ms interval)
-- [ ] Resolution cache — store mappings between runs
+- [x] Resolution cache — `.bettertest/selector-cache.json`, tried first on subsequent runs
 
 ### Milestone 1.3: Test Runner MVP (Weeks 5-8)
 
@@ -33,7 +33,7 @@ The goal is a working test runner that can execute basic tests against a real br
 - [x] Sequential test execution with step-level reporting
 - [x] `bettertest.config.ts` loader — `defineConfig()` with deep merge defaults
 - [x] Console reporter with pass/fail/skip output + timing
-- [ ] Basic retry logic (re-run failed tests N times)
+- [x] Basic retry logic — `--retries N`, marks tests as `flaky` if they pass on retry
 - [x] `bettertest-run` CLI command — end to end with `--dry-run`, `--headed`, `--verbose`, `--base-url`, `--tags`
 
 ### Milestone 1.4: Gherkin/BDD Engine (Weeks 7-10)
@@ -42,7 +42,7 @@ The goal is a working test runner that can execute basic tests against a real br
 - [x] Step definition registry with pattern matching + parameter extraction (string `{param}` + regex, quoted string support)
 - [x] Step context API (`ctx.click()`, `ctx.fill()`, `ctx.assertVisible()`) — DryRunContext + BrowserContext
 - [x] Background step execution before each scenario
-- [ ] Scenario Outline with Examples table expansion
+- [x] Scenario Outline with Examples table expansion — parser + runner expand `<placeholders>` per row
 - [x] Tag filtering (`--tags @smoke,@auth`)
 
 ### Phase 1 Exit Criteria

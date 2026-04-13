@@ -2,6 +2,7 @@ import type { Page, ElementHandle } from 'puppeteer-core';
 import type { StepContext } from '@bettertest/bdd';
 import { mkdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
+import type { SelectorCache } from './selector-cache.js';
 
 /**
  * Real browser implementation of StepContext using puppeteer.
@@ -17,8 +18,10 @@ export class BrowserContext implements StepContext {
   private verbose: boolean;
   private screenshotDir: string;
   private stepIndex = 0;
+  private selectorCache?: SelectorCache;
 
-  constructor(page: Page, baseUrl?: string, verbose = false) {
+  constructor(page: Page, baseUrl?: string, verbose = false, selectorCache?: SelectorCache) {
+    this.selectorCache = selectorCache;
     this.page = page;
     this.baseUrl = baseUrl ?? '';
     this.verbose = verbose;
@@ -130,9 +133,50 @@ export class BrowserContext implements StepContext {
    */
   private async resolveSelector(intent: string, retries = 5): Promise<ElementHandle<Element>> {
     this.stepIndex++;
+
+    // Try cached selector first
+    if (this.selectorCache) {
+      const cached = this.selectorCache.get(intent);
+      if (cached) {
+        try {
+          const el = await this.page.$(cached.cssSelector);
+          if (el) {
+            const isVisible = await el.evaluate((node) => {
+              const s = window.getComputedStyle(node);
+              return s.display !== 'none' && s.visibility !== 'hidden' && node.getBoundingClientRect().height > 0;
+            });
+            if (isVisible) {
+              this.selectorCache.set(intent, cached.strategy, cached.cssSelector);
+              return el;
+            }
+          }
+        } catch {
+          // Cache miss — fall through to full resolution
+        }
+        this.selectorCache.invalidate(intent);
+      }
+    }
+
+    // Full resolution with retries
     for (let attempt = 0; attempt <= retries; attempt++) {
       const result = await this.tryResolve(intent);
-      if (result) return result;
+      if (result) {
+        // Cache the successful resolution
+        if (this.selectorCache) {
+          const cssSelector = await result.evaluate((node) => {
+            // Build a unique CSS selector for this element
+            if (node.id) return `#${node.id}`;
+            const tag = node.tagName.toLowerCase();
+            const label = node.getAttribute('aria-label');
+            if (label) return `${tag}[aria-label="${label}"]`;
+            return '';
+          });
+          if (cssSelector) {
+            this.selectorCache.set(intent, 'resolved', cssSelector);
+          }
+        }
+        return result;
+      }
       if (attempt < retries) {
         await new Promise((r) => setTimeout(r, 200));
       }
@@ -140,7 +184,7 @@ export class BrowserContext implements StepContext {
     const keywords = this.extractKeywords(intent);
     throw new Error(
       `Could not resolve semantic selector: "${intent}"\n` +
-      `Tried: ARIA label, label text, button text, role, placeholder, ID\n` +
+      `Tried: cache, ARIA label, label text, button text, role, placeholder, ID, visual\n` +
       `Keywords extracted: [${keywords.join(', ')}]`,
     );
   }
@@ -171,6 +215,10 @@ export class BrowserContext implements StepContext {
     // 6. ID heuristic
     const idMatch = await this.findById(keywords);
     if (idMatch) return idMatch;
+
+    // 7. Visual/spatial heuristic — positional inference
+    const visualMatch = await this.findByVisualHeuristic(intent, keywords);
+    if (visualMatch) return visualMatch;
 
     return null;
   }
@@ -302,6 +350,61 @@ export class BrowserContext implements StepContext {
         if (match) return match;
       }
     }
+    return null;
+  }
+
+  /**
+   * Visual/spatial heuristic: infer the element from positional context.
+   *
+   * - "submit button" → the last button inside a <form>
+   * - "error message" / "success message" → visible element near the top with alert-like styling
+   * - "input" near a label → the closest input to a label containing keywords
+   */
+  private async findByVisualHeuristic(
+    intent: string,
+    keywords: string[],
+  ): Promise<ElementHandle<Element> | null> {
+    const lower = intent.toLowerCase();
+
+    // "submit button" → last button in a form (submit buttons are typically at the bottom)
+    if (lower.includes('submit') && lower.includes('button')) {
+      const buttons = await this.page.$$('form button, form [type="submit"], form input[type="submit"]');
+      if (buttons.length > 0) return buttons[buttons.length - 1]!;
+    }
+
+    // "X message" / "X notification" → visible element with text matching keywords
+    if (lower.includes('message') || lower.includes('notification') || lower.includes('alert')) {
+      const candidates = await this.page.$$('div, p, span, section');
+      for (const el of candidates) {
+        const info = await el.evaluate((node) => {
+          const style = window.getComputedStyle(node);
+          const text = (node.textContent ?? '').trim().toLowerCase();
+          const visible = style.display !== 'none' && style.visibility !== 'hidden' && node.getBoundingClientRect().height > 0;
+          return { text, visible, height: node.getBoundingClientRect().height };
+        });
+        if (info.visible && info.text.length > 0 && info.text.length < 200) {
+          if (keywords.some((kw) => info.text.includes(kw))) {
+            return el;
+          }
+        }
+      }
+    }
+
+    // "X input" / "X field" → find input closest (in DOM order) to a text node containing keywords
+    if (lower.includes('input') || lower.includes('field')) {
+      const allInputs = await this.page.$$('input, textarea, select');
+      for (const input of allInputs) {
+        const nearby = await input.evaluate((node, kws) => {
+          // Check previous sibling text, parent text, nearby label
+          const parent = node.parentElement;
+          if (!parent) return false;
+          const parentText = parent.textContent?.toLowerCase() ?? '';
+          return (kws as string[]).some((kw) => parentText.includes(kw));
+        }, keywords);
+        if (nearby) return input;
+      }
+    }
+
     return null;
   }
 
