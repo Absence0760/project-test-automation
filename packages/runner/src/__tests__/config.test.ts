@@ -15,7 +15,7 @@ describe('defineConfig', () => {
     expect(config.selectors.autoHeal).toBe(false);
     expect(config.runner.workers).toBe('auto');
     expect(config.runner.failFast).toBe(false);
-    expect(config.runner.timeoutMs).toBe(60_000);
+    expect(config.runner.timeoutMs).toBe(30_000);
     expect(config.runner.retries).toBe(0);
     expect(config.reporters).toEqual([{ type: 'console' }]);
   });
@@ -39,7 +39,7 @@ describe('defineConfig', () => {
     expect(config.runner.retries).toBe(2);
     // Defaults are preserved
     expect(config.runner.workers).toBe('auto');
-    expect(config.runner.timeoutMs).toBe(60_000);
+    expect(config.runner.timeoutMs).toBe(30_000);
   });
 
   it('deep-merges browser options', () => {
