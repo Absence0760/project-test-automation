@@ -10,7 +10,7 @@ How to set up, build, and test Better Test Automation on your machine.
 |------|---------|---------|
 | **Node.js** | >= 22 | [nodejs.org](https://nodejs.org) or `brew install node` |
 | **pnpm** | >= 10 | `npm install -g pnpm` or `brew install pnpm` |
-| **Rust** | >= 1.85 (edition 2024) | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` |
+| **Rust** | >= 1.85 (edition 2024) | See [Installing Rust](#installing-rust) below |
 | **Ollama** (optional) | latest | [ollama.com](https://ollama.com) — only needed for AI features |
 
 Verify your setup:
@@ -20,6 +20,44 @@ node --version    # v22.x+
 pnpm --version    # 10.x+
 rustc --version   # 1.85.0+
 cargo --version   # 1.85.0+
+```
+
+### Installing Rust
+
+Install via the official [rustup](https://rustup.rs) installer:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+After the install finishes, load it into your current shell:
+
+```bash
+. "$HOME/.cargo/env"
+```
+
+Then make sure it persists across new terminals. Check if rustup already added it to your shell config:
+
+```bash
+grep cargo ~/.zshrc   # macOS (zsh)
+grep cargo ~/.bashrc  # Linux (bash)
+```
+
+If nothing shows up, add it manually:
+
+```bash
+# macOS (zsh)
+echo '. "$HOME/.cargo/env"' >> ~/.zshrc
+
+# Linux (bash)
+echo '. "$HOME/.cargo/env"' >> ~/.bashrc
+```
+
+Verify:
+
+```bash
+rustc --version   # should be >= 1.85.0
+cargo --version
 ```
 
 ---
