@@ -25,6 +25,8 @@ import type {
   TestStatus,
 } from './types.js';
 import { DryRunContext } from './context.js';
+import { BrowserContext } from './browser.js';
+import { launchBrowser, type LaunchResult } from './launcher.js';
 import { createReporters, notifyAll } from './reporters.js';
 
 /**
@@ -39,8 +41,11 @@ export class TestRunner {
   private importedStepFiles = new Set<string>();
   private verbose: boolean;
 
-  constructor(config: BetterTestConfig, runtimeOpts?: { verbose?: boolean }) {
+  private dryRun: boolean;
+
+  constructor(config: BetterTestConfig, runtimeOpts?: { verbose?: boolean; dryRun?: boolean }) {
     this.verbose = runtimeOpts?.verbose ?? false;
+    this.dryRun = runtimeOpts?.dryRun ?? false;
     this.config = config;
     this.options = {
       workers: config.runner.workers ?? 'auto',
@@ -111,11 +116,21 @@ export class TestRunner {
 
     // Execute
     const registry = getGlobalRegistry();
-    const ctx = new DryRunContext(this.config.baseUrl, this.verbose);
+    let launch: LaunchResult | null = null;
+    let ctx: DryRunContext | BrowserContext;
+
+    if (this.dryRun) {
+      ctx = new DryRunContext(this.config.baseUrl, this.verbose);
+    } else {
+      launch = await launchBrowser(this.config.browser);
+      ctx = new BrowserContext(launch.page, this.config.baseUrl, this.verbose);
+    }
+
     const allResults: TestResult[] = [];
     const suiteReports: SuiteReport[] = [];
     let aborted = false;
 
+    try {
     for (const suite of discovered) {
       if (aborted) break;
 
@@ -194,6 +209,12 @@ export class TestRunner {
     await notifyAll(reporters, 'onRunComplete', reportData);
 
     return allResults;
+
+    } finally {
+      if (launch) {
+        await launch.close();
+      }
+    }
   }
 
   // ─── Private: Test Execution ────────────────────────────────
@@ -202,7 +223,7 @@ export class TestRunner {
     testCase: TestCase,
     suiteName: string,
     registry: StepRegistry,
-    ctx: DryRunContext,
+    ctx: DryRunContext | BrowserContext,
   ): Promise<TestResult> {
     const stepResults: StepResult[] = [];
     let testStatus: TestStatus = 'passed';
@@ -261,9 +282,15 @@ export class TestRunner {
           durationMs: performance.now() - stepStart,
         });
         testStatus = 'failed';
+        // Screenshot on failure (browser mode only)
+        let screenshot: string | undefined;
+        if (ctx instanceof BrowserContext) {
+          screenshot = await ctx.screenshot(testCase.id);
+        }
         testError = {
           message: error instanceof Error ? error.message : String(error),
           ...(error instanceof Error && error.stack && { stack: error.stack }),
+          ...(screenshot && { screenshot }),
         };
         break;
       }

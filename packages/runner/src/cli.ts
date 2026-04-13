@@ -12,8 +12,12 @@ async function main(): Promise<void> {
     options: {
       config: { type: 'string', short: 'c' },
       testDir: { type: 'string' },
+      'base-url': { type: 'string' },
       tags: { type: 'string', short: 't' },
       failFast: { type: 'boolean', default: false },
+      'dry-run': { type: 'boolean', default: false },
+      headed: { type: 'boolean', default: false },
+      headless: { type: 'boolean', default: false },
       verbose: { type: 'boolean', short: 'v', default: false },
       help: { type: 'boolean', short: 'h' },
     },
@@ -29,9 +33,13 @@ async function main(): Promise<void> {
   Options:
     -c, --config <path>   Config file (default: bettertest.config.ts)
     --testDir <path>      Override test directory
+    --base-url <url>      Override base URL (e.g., http://localhost:3000)
     -t, --tags <tags>     Comma-separated tag filter (e.g., @smoke,@auth)
     --failFast            Stop on first failure
-    -v, --verbose         Show each action the dry-run context performs
+    --dry-run             Run without a browser (log actions only)
+    --headed              Run with a visible browser window
+    --headless            Run browser in headless mode (default)
+    -v, --verbose         Show each action the context performs
     -h, --help            Show this help
 `);
     return;
@@ -58,6 +66,10 @@ async function main(): Promise<void> {
     userConfig.testDir = values.testDir as string;
   }
 
+  if (values['base-url']) {
+    userConfig.baseUrl = values['base-url'] as string;
+  }
+
   if (values.tags) {
     const tags = (values.tags as string).split(',').map((t) => t.trim());
     userConfig.runner = { ...userConfig.runner, tags };
@@ -67,10 +79,21 @@ async function main(): Promise<void> {
     userConfig.runner = { ...userConfig.runner, failFast: true };
   }
 
+  // headed = visible browser, headless = invisible browser
+  if (values.headed) {
+    userConfig.browser = { ...userConfig.browser, headless: false } as BetterTestConfig['browser'];
+  }
+  if (values.headless) {
+    userConfig.browser = { ...userConfig.browser, headless: true } as BetterTestConfig['browser'];
+  }
+
   const config = defineConfig(userConfig);
 
   // Run
-  const runner = new TestRunner(config, { verbose: !!values.verbose });
+  const runner = new TestRunner(config, {
+    verbose: !!values.verbose,
+    dryRun: !!values['dry-run'],
+  });
   const results = await runner.run();
 
   const failures = results.filter((r) => r.status === 'failed').length;

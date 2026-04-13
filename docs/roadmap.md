@@ -11,39 +11,39 @@ The goal is a working test runner that can execute basic tests against a real br
 ### Milestone 1.1: Core Engine (Weeks 1-4)
 
 - [ ] WebDriver BiDi session management (connect, send commands, receive events)
-- [ ] CDP fallback for browsers that don't fully support BiDi yet
-- [ ] Browser launcher — detect system Chromium/Firefox/WebKit, connect via protocol
-- [ ] Basic element interaction: navigate, click, fill, read text
-- [ ] Screenshot capture on failure
+- [x] CDP fallback for browsers that don't fully support BiDi yet — using puppeteer-core via CDP
+- [x] Browser launcher — detect system Chrome on macOS/Linux/Windows, launch with remote debugging
+- [x] Basic element interaction: navigate, click, fill, read text — via BrowserContext
+- [x] Screenshot capture on failure — saves to `test-results/screenshots/`
 - [ ] NAPI bridge — call Rust core from TypeScript via `bettertest-napi`
 
 ### Milestone 1.2: Semantic Selector Engine (Weeks 3-6)
 
 - [ ] Accessibility tree extraction from live browser sessions
-- [ ] Intent parser — "the submit button in the login form" -> role + name + scope
-- [ ] Accessibility-first resolution (ARIA roles, labels, semantic HTML)
-- [ ] NLP text matching fallback (button text, placeholders, tooltips, aria-label)
+- [x] Intent parser — "the submit button in the login form" -> role + name + scope (keyword extraction + role inference)
+- [x] Accessibility-first resolution (ARIA labels, label text → linked input)
+- [x] NLP text matching fallback (button text, placeholders, headings, role text)
 - [ ] Visual/spatial heuristic fallback (position, proximity, size)
-- [ ] Multi-strategy resolver with confidence scoring
+- [x] Multi-strategy resolver with auto-retry (6 strategies, 5 retries with 200ms interval)
 - [ ] Resolution cache — store mappings between runs
 
 ### Milestone 1.3: Test Runner MVP (Weeks 5-8)
 
-- [ ] Test file discovery (glob patterns, `.test.ts`, `.spec.ts`, `.feature`)
-- [ ] Sequential test execution with step-level reporting
-- [ ] `bettertest.config.ts` loader
-- [ ] Console reporter with pass/fail/skip output
+- [x] Test file discovery (glob patterns for `.feature` and `.steps.ts`)
+- [x] Sequential test execution with step-level reporting
+- [x] `bettertest.config.ts` loader — `defineConfig()` with deep merge defaults
+- [x] Console reporter with pass/fail/skip output + timing
 - [ ] Basic retry logic (re-run failed tests N times)
-- [ ] `bettertest run` CLI command — end to end
+- [x] `bettertest-run` CLI command — end to end with `--dry-run`, `--headed`, `--verbose`, `--base-url`, `--tags`
 
 ### Milestone 1.4: Gherkin/BDD Engine (Weeks 7-10)
 
-- [ ] Feature file parser (scenarios, backgrounds, outlines, data tables, doc strings)
-- [ ] Step definition registry with pattern matching + parameter extraction
-- [ ] Step context API (`ctx.click()`, `ctx.fill()`, `ctx.assertVisible()`)
-- [ ] Background step execution before each scenario
+- [x] Feature file parser (scenarios, backgrounds, outlines, data tables, doc strings)
+- [x] Step definition registry with pattern matching + parameter extraction (string `{param}` + regex, quoted string support)
+- [x] Step context API (`ctx.click()`, `ctx.fill()`, `ctx.assertVisible()`) — DryRunContext + BrowserContext
+- [x] Background step execution before each scenario
 - [ ] Scenario Outline with Examples table expansion
-- [ ] Tag filtering (`--tag @smoke`, `--tag ~@slow`)
+- [x] Tag filtering (`--tags @smoke,@auth`)
 
 ### Phase 1 Exit Criteria
 
