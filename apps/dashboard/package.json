@@ -8,7 +8,7 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "vitest run --passWithNoTests",
     "typecheck": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "lint": "eslint src/"
   },

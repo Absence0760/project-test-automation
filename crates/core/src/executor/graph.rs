@@ -236,4 +236,109 @@ mod tests {
         let result = graph.add_dependency("b", "a");
         assert!(matches!(result, Err(GraphError::CyclicDependency)));
     }
+
+    #[test]
+    fn dependency_on_missing_node_fails() {
+        let mut graph = ExecutionGraph::new();
+        graph.add_node(make_node("a"));
+
+        let result = graph.add_dependency("a", "nonexistent");
+        assert!(matches!(result, Err(GraphError::NodeNotFound)));
+    }
+
+    #[test]
+    fn node_count_tracks_additions() {
+        let mut graph = ExecutionGraph::new();
+        assert_eq!(graph.node_count(), 0);
+
+        graph.add_node(make_node("a"));
+        assert_eq!(graph.node_count(), 1);
+
+        graph.add_node(make_node("b"));
+        assert_eq!(graph.node_count(), 2);
+    }
+
+    #[test]
+    fn completed_nodes_are_not_ready() {
+        let mut graph = ExecutionGraph::new();
+        graph.add_node(make_node("a"));
+        graph.add_node(make_node("b"));
+
+        let mut completed = HashSet::new();
+        completed.insert("a".to_string());
+
+        let ready = graph.ready_nodes(&completed);
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "b");
+    }
+
+    #[test]
+    fn diamond_dependency_graph() {
+        // A diamond: login -> [profile, settings] -> checkout
+        let mut graph = ExecutionGraph::new();
+        graph.add_node(make_node("login"));
+        graph.add_node(make_node("profile"));
+        graph.add_node(make_node("settings"));
+        graph.add_node(make_node("checkout"));
+
+        graph.add_dependency("profile", "login").unwrap();
+        graph.add_dependency("settings", "login").unwrap();
+        graph.add_dependency("checkout", "profile").unwrap();
+        graph.add_dependency("checkout", "settings").unwrap();
+
+        // Only login is ready initially
+        let ready = graph.ready_nodes(&HashSet::new());
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "login");
+
+        // After login, profile and settings are ready (parallel)
+        let mut completed = HashSet::from(["login".to_string()]);
+        let ready = graph.ready_nodes(&completed);
+        assert_eq!(ready.len(), 2);
+        let ids: HashSet<&str> = ready.iter().map(|n| n.id.as_str()).collect();
+        assert!(ids.contains("profile"));
+        assert!(ids.contains("settings"));
+
+        // After profile + settings, checkout is ready
+        completed.insert("profile".to_string());
+        completed.insert("settings".to_string());
+        let ready = graph.ready_nodes(&completed);
+        assert_eq!(ready.len(), 1);
+        assert_eq!(ready[0].id, "checkout");
+    }
+
+    #[test]
+    fn three_node_cycle_is_detected() {
+        let mut graph = ExecutionGraph::new();
+        graph.add_node(make_node("a"));
+        graph.add_node(make_node("b"));
+        graph.add_node(make_node("c"));
+
+        graph.add_dependency("a", "b").unwrap();
+        graph.add_dependency("b", "c").unwrap();
+        let result = graph.add_dependency("c", "a");
+        assert!(matches!(result, Err(GraphError::CyclicDependency)));
+    }
+
+    #[test]
+    fn topological_order_prioritizes_high_failure_probability() {
+        let mut graph = ExecutionGraph::new();
+
+        let mut slow = make_node("slow");
+        slow.failure_probability = Some(0.1);
+        graph.add_node(slow);
+
+        let mut flaky = make_node("flaky");
+        flaky.failure_probability = Some(0.9);
+        graph.add_node(flaky);
+
+        let mut medium = make_node("medium");
+        medium.failure_probability = Some(0.5);
+        graph.add_node(medium);
+
+        let order = graph.topological_order().unwrap();
+        assert_eq!(order[0].id, "flaky");
+        assert_eq!(order[1].id, "medium");
+        assert_eq!(order[2].id, "slow");
+    }
 }

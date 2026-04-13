@@ -1,4 +1,4 @@
-mod diff;
+pub mod diff;
 
 pub use diff::DomDiff;
 

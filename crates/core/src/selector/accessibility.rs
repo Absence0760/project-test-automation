@@ -115,4 +115,51 @@ mod tests {
         let query = parse_intent("navigation menu");
         assert_eq!(query.role, Some("navigation".to_string()));
     }
+
+    #[test]
+    fn parse_link_intent() {
+        let query = parse_intent("the forgot password link");
+        assert_eq!(query.role, Some("link".to_string()));
+        assert_eq!(query.name_contains, Some("forgot password".to_string()));
+    }
+
+    #[test]
+    fn parse_heading_intent() {
+        let query = parse_intent("the welcome heading");
+        assert_eq!(query.role, Some("heading".to_string()));
+        assert_eq!(query.name_contains, Some("welcome".to_string()));
+    }
+
+    #[test]
+    fn parse_unknown_role_returns_none() {
+        let query = parse_intent("the sidebar");
+        assert_eq!(query.role, None);
+        assert_eq!(query.name_contains, Some("sidebar".to_string()));
+    }
+
+    #[test]
+    fn parse_intent_is_case_insensitive() {
+        let query = parse_intent("The Submit BUTTON");
+        assert_eq!(query.role, Some("button".to_string()));
+        assert_eq!(query.name_contains, Some("submit".to_string()));
+    }
+
+    #[test]
+    fn parse_scoped_intent_extracts_name() {
+        let query = parse_intent("the save button in the settings form");
+        assert_eq!(query.role, Some("button".to_string()));
+        assert_eq!(query.name_contains, Some("save settings".to_string()));
+    }
+
+    #[test]
+    fn extract_name_hint_strips_all_stop_words() {
+        let hint = extract_name_hint("the a an button input field");
+        assert_eq!(hint, None);
+    }
+
+    #[test]
+    fn extract_name_hint_preserves_meaningful_words() {
+        let hint = extract_name_hint("the primary action button");
+        assert_eq!(hint, Some("primary action".to_string()));
+    }
 }
