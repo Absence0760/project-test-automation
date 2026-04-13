@@ -1,0 +1,11 @@
+{
+  "name": "@bettertest/demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Demo web app for testing Better Test Automation against a real UI",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx --watch server.ts",
+    "start": "tsx server.ts"
+  }
+}
