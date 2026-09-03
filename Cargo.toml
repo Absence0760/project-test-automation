@@ -40,7 +40,7 @@ ratatui = "0.30"
 crossterm = "0.29"
 
 # NAPI
-napi = { version = "2", features = ["async", "serde-json"] }
+napi = { version = "3", features = ["async", "serde-json"] }
 napi-derive = "2"
 
 # Testing
