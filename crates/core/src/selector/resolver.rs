@@ -1,5 +1,5 @@
 use super::{
-    AccessibilityStrategy, ResolvedSelector, ResolutionStrategy, SemanticSelector, VisualStrategy,
+    AccessibilityStrategy, ResolutionStrategy, ResolvedSelector, SemanticSelector, VisualStrategy,
 };
 
 /// Multi-strategy selector resolver.
@@ -66,17 +66,19 @@ impl SelectorResolver {
         }
 
         // 2. Try accessibility tree
-        if let Some(resolved) = self.accessibility.resolve(selector, &context.accessibility_tree) {
-            if resolved.confidence >= self.min_confidence {
-                return Ok(resolved);
-            }
+        if let Some(resolved) = self
+            .accessibility
+            .resolve(selector, &context.accessibility_tree)
+            && resolved.confidence >= self.min_confidence
+        {
+            return Ok(resolved);
         }
 
         // 3. Try visual heuristics
-        if let Some(resolved) = self.visual.resolve(selector, &context.layout_nodes) {
-            if resolved.confidence >= self.min_confidence {
-                return Ok(resolved);
-            }
+        if let Some(resolved) = self.visual.resolve(selector, &context.layout_nodes)
+            && resolved.confidence >= self.min_confidence
+        {
+            return Ok(resolved);
         }
 
         // 4. All strategies failed

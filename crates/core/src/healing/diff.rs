@@ -16,10 +16,7 @@ pub enum DomChange {
         attributes: Vec<(String, String)>,
     },
     /// An element was removed.
-    Removed {
-        path: String,
-        tag: String,
-    },
+    Removed { path: String, tag: String },
     /// An element's attributes changed.
     AttributeChanged {
         path: String,
@@ -43,10 +40,7 @@ pub enum DomChange {
 
 impl DomDiff {
     /// Compute the diff between two DOM snapshots.
-    pub fn compute(
-        _before: &serde_json::Value,
-        _after: &serde_json::Value,
-    ) -> Self {
+    pub fn compute(_before: &serde_json::Value, _after: &serde_json::Value) -> Self {
         // TODO: Implement DOM tree diffing algorithm
         // This will compare two serialized DOM trees and produce
         // a minimal set of changes.

@@ -45,11 +45,7 @@ impl ExecutionGraph {
     }
 
     /// Declare that `node_id` depends on `depends_on` (must run after it).
-    pub fn add_dependency(
-        &mut self,
-        node_id: &str,
-        depends_on: &str,
-    ) -> Result<(), GraphError> {
+    pub fn add_dependency(&mut self, node_id: &str, depends_on: &str) -> Result<(), GraphError> {
         if !self.nodes.contains_key(node_id) || !self.nodes.contains_key(depends_on) {
             return Err(GraphError::NodeNotFound);
         }
