@@ -25,7 +25,13 @@ export class BrowserContext implements StepContext {
   /** When panel is active, DOM queries run against this frame (the iframe). */
   private appFrame: Frame | null = null;
 
-  constructor(page: Page, baseUrl?: string, verbose = false, selectorCache?: SelectorCache, slowMs = 0) {
+  constructor(
+    page: Page,
+    baseUrl?: string,
+    verbose = false,
+    selectorCache?: SelectorCache,
+    slowMs = 0,
+  ) {
     this.selectorCache = selectorCache ?? undefined;
     this.page = page;
     this.baseUrl = baseUrl ?? '';
@@ -70,10 +76,14 @@ export class BrowserContext implements StepContext {
       for (let i = 0; i < 20; i++) {
         await new Promise((r) => setTimeout(r, 200));
         const frames = this.panelPage.frames();
-        const frame = frames.find((f) => f !== this.panelPage!.mainFrame() && f.url().includes(new URL(resolved).pathname));
+        const frame = frames.find(
+          (f) => f !== this.panelPage!.mainFrame() && f.url().includes(new URL(resolved).pathname),
+        );
         if (frame) {
           this.appFrame = frame;
-          try { await frame.waitForSelector('body', { timeout: 3000 }); } catch {}
+          try {
+            await frame.waitForSelector('body', { timeout: 3000 });
+          } catch {}
           break;
         }
       }
@@ -94,13 +104,17 @@ export class BrowserContext implements StepContext {
       await el.click();
       await new Promise((r) => setTimeout(r, 500));
       const frames = this.panelPage.frames();
-      const frame = frames.find((f) =>
-        f !== this.panelPage!.mainFrame() && f.url() !== 'about:blank' && f.url().startsWith('http'),
+      const frame = frames.find(
+        (f) =>
+          f !== this.panelPage!.mainFrame() &&
+          f.url() !== 'about:blank' &&
+          f.url().startsWith('http'),
       );
       if (frame) this.appFrame = frame;
     } else {
       // Direct mode: listen for navigation
-      const navPromise = this.page.waitForNavigation({ waitUntil: 'load', timeout: 1_000 })
+      const navPromise = this.page
+        .waitForNavigation({ waitUntil: 'load', timeout: 1_000 })
         .catch(() => null);
       await el.click();
       await navPromise;
@@ -140,9 +154,7 @@ export class BrowserContext implements StepContext {
     const el = await this.resolveSelector(selector);
     const text = await el.evaluate((node) => node.textContent?.trim() ?? '');
     if (!text.includes(expected)) {
-      throw new Error(
-        `Expected "${selector}" to contain "${expected}", but got "${text}"`,
-      );
+      throw new Error(`Expected "${selector}" to contain "${expected}", but got "${text}"`);
     }
   }
 
@@ -203,7 +215,11 @@ export class BrowserContext implements StepContext {
           if (el) {
             const isVisible = await el.evaluate((node) => {
               const s = window.getComputedStyle(node);
-              return s.display !== 'none' && s.visibility !== 'hidden' && node.getBoundingClientRect().height > 0;
+              return (
+                s.display !== 'none' &&
+                s.visibility !== 'hidden' &&
+                node.getBoundingClientRect().height > 0
+              );
             });
             if (isVisible) {
               this.selectorCache.set(intent, cached.strategy, cached.cssSelector);
@@ -244,12 +260,15 @@ export class BrowserContext implements StepContext {
     const keywords = this.extractKeywords(intent);
     throw new Error(
       `Could not resolve semantic selector: "${intent}"\n` +
-      `Tried: cache, ARIA label, label text, button text, role, placeholder, ID, visual\n` +
-      `Keywords extracted: [${keywords.join(', ')}]`,
+        `Tried: cache, ARIA label, label text, button text, role, placeholder, ID, visual\n` +
+        `Keywords extracted: [${keywords.join(', ')}]`,
     );
   }
 
-  private async tryResolve(intent: string, useA11yTree = true): Promise<ElementHandle<Element> | null> {
+  private async tryResolve(
+    intent: string,
+    useA11yTree = true,
+  ): Promise<ElementHandle<Element> | null> {
     const keywords = this.extractKeywords(intent);
 
     // 0. Accessibility tree — single CDP call, walk in memory (first attempt only)
@@ -291,8 +310,26 @@ export class BrowserContext implements StepContext {
 
   private extractKeywords(intent: string): string[] {
     const stopWords = new Set([
-      'the', 'a', 'an', 'in', 'on', 'at', 'for', 'of', 'to', 'and', 'or',
-      'is', 'are', 'was', 'be', 'has', 'have', 'with', 'that', 'this',
+      'the',
+      'a',
+      'an',
+      'in',
+      'on',
+      'at',
+      'for',
+      'of',
+      'to',
+      'and',
+      'or',
+      'is',
+      'are',
+      'was',
+      'be',
+      'has',
+      'have',
+      'with',
+      'that',
+      'this',
     ]);
     return intent
       .toLowerCase()
@@ -350,7 +387,8 @@ export class BrowserContext implements StepContext {
     if (lower.includes('menu') || lower.includes('nav')) return 'navigation';
     if (lower.includes('checkbox') || lower.includes('toggle')) return 'checkbox';
     if (lower.includes('dropdown') || lower.includes('select')) return 'combobox';
-    if (lower.includes('alert') || lower.includes('error') || lower.includes('message')) return 'alert';
+    if (lower.includes('alert') || lower.includes('error') || lower.includes('message'))
+      return 'alert';
     if (lower.includes('label')) return 'LabelText';
     return null;
   }
@@ -381,7 +419,10 @@ export class BrowserContext implements StepContext {
     }
 
     // Special: "label" intent — match StaticText or LabelText roles
-    if (targetRole === 'LabelText' && (role === 'statictext' || role === 'labeltext' || role === 'label')) {
+    if (
+      targetRole === 'LabelText' &&
+      (role === 'statictext' || role === 'labeltext' || role === 'label')
+    ) {
       score += 2;
     }
 
@@ -418,10 +459,15 @@ export class BrowserContext implements StepContext {
 
     // Strategy 2: find by role attribute + text content
     if (role === 'button' || role === 'link') {
-      const elements = await this.target.$$(role === 'button' ? 'button, [role="button"], input[type="submit"]' : 'a, [role="link"]');
+      const elements = await this.target.$$(
+        role === 'button' ? 'button, [role="button"], input[type="submit"]' : 'a, [role="link"]',
+      );
       for (const el of elements) {
         const text = await el.evaluate((n) => (n.textContent ?? '').trim());
-        if (text.toLowerCase().includes(name.toLowerCase()) || name.toLowerCase().includes(text.toLowerCase())) {
+        if (
+          text.toLowerCase().includes(name.toLowerCase()) ||
+          name.toLowerCase().includes(text.toLowerCase())
+        ) {
           return el;
         }
       }
@@ -429,7 +475,9 @@ export class BrowserContext implements StepContext {
 
     // Strategy 3: find by aria-label
     if (name) {
-      const el = await this.target.$(`[aria-label="${name}"], [aria-label*="${name}"]`).catch(() => null);
+      const el = await this.target
+        .$(`[aria-label="${name}"], [aria-label*="${name}"]`)
+        .catch(() => null);
       if (el) return el;
     }
 
@@ -467,9 +515,7 @@ export class BrowserContext implements StepContext {
   private async findByLabelText(keywords: string[]): Promise<ElementHandle<Element> | null> {
     const labels = await this.target.$$('label');
     for (const label of labels) {
-      const text = await label.evaluate((node) =>
-        (node.textContent ?? '').toLowerCase().trim(),
-      );
+      const text = await label.evaluate((node) => (node.textContent ?? '').toLowerCase().trim());
       if (keywords.some((kw) => text.includes(kw))) {
         // Follow the `for` attribute to find the linked input
         const forId = await label.evaluate((node) => node.getAttribute('for'));
@@ -491,9 +537,7 @@ export class BrowserContext implements StepContext {
     for (const sel of selectors) {
       const elements = await this.target.$$(sel);
       for (const el of elements) {
-        const text = await el.evaluate((node) =>
-          (node.textContent ?? '').toLowerCase().trim(),
-        );
+        const text = await el.evaluate((node) => (node.textContent ?? '').toLowerCase().trim());
         if (keywords.some((kw) => text.includes(kw))) {
           return el;
         }
@@ -502,12 +546,16 @@ export class BrowserContext implements StepContext {
     return null;
   }
 
-  private async findByRole(intent: string, keywords: string[]): Promise<ElementHandle<Element> | null> {
+  private async findByRole(
+    intent: string,
+    keywords: string[],
+  ): Promise<ElementHandle<Element> | null> {
     // Infer the role from the intent
     const lower = intent.toLowerCase();
     let role: string | null = null;
     if (lower.includes('button')) role = 'button';
-    else if (lower.includes('alert') || lower.includes('error') || lower.includes('message')) role = 'alert';
+    else if (lower.includes('alert') || lower.includes('error') || lower.includes('message'))
+      role = 'alert';
     else if (lower.includes('form')) role = 'form';
     else if (lower.includes('nav')) role = 'navigation';
 
@@ -520,7 +568,11 @@ export class BrowserContext implements StepContext {
     for (const el of elements) {
       const isVis = await el.evaluate((node) => {
         const s = window.getComputedStyle(node);
-        return s.display !== 'none' && s.visibility !== 'hidden' && node.getBoundingClientRect().height > 0;
+        return (
+          s.display !== 'none' &&
+          s.visibility !== 'hidden' &&
+          node.getBoundingClientRect().height > 0
+        );
       });
       if (isVis) visible.push(el);
     }
@@ -529,9 +581,7 @@ export class BrowserContext implements StepContext {
 
     // Multiple visible matches — narrow by text content
     for (const el of visible.length > 0 ? visible : elements) {
-      const text = await el.evaluate((node) =>
-        (node.textContent ?? '').toLowerCase().trim(),
-      );
+      const text = await el.evaluate((node) => (node.textContent ?? '').toLowerCase().trim());
       if (keywords.some((kw) => text.includes(kw))) {
         return el;
       }
@@ -585,7 +635,9 @@ export class BrowserContext implements StepContext {
 
     // "submit button" → last button in a form (submit buttons are typically at the bottom)
     if (lower.includes('submit') && lower.includes('button')) {
-      const buttons = await this.target.$$('form button, form [type="submit"], form input[type="submit"]');
+      const buttons = await this.target.$$(
+        'form button, form [type="submit"], form input[type="submit"]',
+      );
       if (buttons.length > 0) return buttons[buttons.length - 1]!;
     }
 
@@ -596,7 +648,10 @@ export class BrowserContext implements StepContext {
         const info = await el.evaluate((node) => {
           const style = window.getComputedStyle(node);
           const text = (node.textContent ?? '').trim().toLowerCase();
-          const visible = style.display !== 'none' && style.visibility !== 'hidden' && node.getBoundingClientRect().height > 0;
+          const visible =
+            style.display !== 'none' &&
+            style.visibility !== 'hidden' &&
+            node.getBoundingClientRect().height > 0;
           return { text, visible, height: node.getBoundingClientRect().height };
         });
         if (info.visible && info.text.length > 0 && info.text.length < 200) {

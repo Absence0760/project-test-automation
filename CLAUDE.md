@@ -7,11 +7,13 @@ Next-generation test automation platform. Not just browser automation — a **te
 **Monorepo**: Cargo workspace (Rust) + pnpm workspace (TypeScript/Svelte)
 
 ### Rust Crates (`crates/`)
+
 - `bettertest-core` — Browser protocol (WebDriver BiDi + CDP fallback), semantic selector engine, execution graph, self-healing engine
 - `bettertest-cli` — CLI/TUI interface (Ratatui)
 - `bettertest-napi` — Node.js native bindings via NAPI-RS
 
 ### TypeScript Packages (`packages/`)
+
 - `@bettertest/runner` — Test runner orchestration, browser launcher, panel UI, selector resolution
 - `@bettertest/bdd` — First-class Gherkin/BDD engine (custom parser, not Cucumber-JS)
 - `@bettertest/ai` — AI layer (local LLM via Ollama + optional cloud)
@@ -20,10 +22,12 @@ Next-generation test automation platform. Not just browser automation — a **te
 - `@bettertest/cli` — npm CLI wrapper (downloads + launches the Rust binary)
 
 ### Apps (`apps/`)
+
 - `dashboard` — Svelte reporting/analytics dashboard
 - `demo` — Demo login/dashboard web app for testing against
 
 ## Key Technical Decisions
+
 - **Runtime**: Node.js + Rust hybrid (TS for authoring, Rust for performance-critical paths)
 - **Browser Protocol**: WebDriver BiDi (W3C standard) with CDP fallback
 - **No Chromium bundling** — uses system Chrome via CDP (puppeteer-core), no bundled browser
@@ -82,6 +86,7 @@ pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://lo
 ```
 
 ## Conventions
+
 - **Rust**: Follow standard Rust idioms. Use `thiserror` for library errors, `anyhow` for CLI errors. Prefer `Result<T>` over panics.
 - **TypeScript**: Strict mode. No `any`. Use Vitest for testing. ESM-only.
 - **Git**: Conventional commits (`feat:`, `fix:`, `refactor:`, `docs:`, `test:`, `chore:`).
@@ -90,7 +95,9 @@ pnpm exec tsx packages/runner/src/cli.ts --testDir examples --base-url http://lo
 - **Error handling**: Typed errors with context. No swallowed errors. No `unwrap()` in library code.
 
 ## Deep-Dive Docs
+
 When working on a specific area, read the relevant doc for full context:
+
 - `docs/architecture.md` — system layers, data flow, resolution pipeline diagrams
 - `docs/semantic-selectors.md` — how the selector engine works, confidence scoring, healing connection
 - `docs/roadmap.md` — phased milestones with checklists (check what's done vs TODO)
@@ -99,6 +106,7 @@ When working on a specific area, read the relevant doc for full context:
 - `docs/local-testing.md` — build/test/run commands, Ollama setup, troubleshooting
 
 ## Competitive Moats (Keep These Central)
+
 1. **Flakiness intelligence** — root cause analysis, not just retry
 2. **Semantic selectors** — intent-based, not DOM-structural
 3. **Self-healing** — automatic selector repair with git-diff review

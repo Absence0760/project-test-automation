@@ -77,7 +77,7 @@ This phase builds the features that make switching from Cypress/Playwright worth
   - Network timing (slow/variable API responses)
   - Data dependency (test assumes specific DB state)
   - Environment (works locally, fails in CI)
-- [ ] Root cause explanation (not just "flaky" — *why* it's flaky)
+- [ ] Root cause explanation (not just "flaky" — _why_ it's flaky)
 - [ ] Suggested fix per classification
 - [ ] `bettertest flaky` CLI command with historical analysis
 - [ ] JSON output for Flakey dashboard integration
@@ -166,7 +166,7 @@ Polish the developer experience and build the ecosystem integrations.
 
 ## Phase 4 — Intelligence Layer (Months 9-12)
 
-The features that make this a *platform*, not just a runner.
+The features that make this a _platform_, not just a runner.
 
 ### Milestone 4.1: Test Generation (Weeks 32-38)
 

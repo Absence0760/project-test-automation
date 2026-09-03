@@ -1,0 +1,14 @@
+# Lockfiles — machine-generated, and reformatting them creates noisy diffs
+# and needless merge conflicts.
+pnpm-lock.yaml
+
+# Build output
+build/
+dist/
+.svelte-kit/
+target/
+coverage/
+node_modules/
+
+# Rust owns its own formatting (rustfmt, see .rustfmt.toml)
+*.rs

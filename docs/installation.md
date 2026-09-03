@@ -53,14 +53,14 @@ Add to your `package.json` scripts:
 
 ### Packages available on npm
 
-| Package | Description |
-|---------|-------------|
-| `@bettertest/cli` | CLI binary (the `bettertest` command) |
-| `@bettertest/runner` | Test runner, config, orchestration |
-| `@bettertest/bdd` | Gherkin parser + step definitions |
-| `@bettertest/selectors` | Semantic selector API |
-| `@bettertest/ai` | AI layer (Ollama + cloud) |
-| `@bettertest/reporter` | Built-in reporters (HTML, JSON, JUnit, console) |
+| Package                 | Description                                     |
+| ----------------------- | ----------------------------------------------- |
+| `@bettertest/cli`       | CLI binary (the `bettertest` command)           |
+| `@bettertest/runner`    | Test runner, config, orchestration              |
+| `@bettertest/bdd`       | Gherkin parser + step definitions               |
+| `@bettertest/selectors` | Semantic selector API                           |
+| `@bettertest/ai`        | AI layer (Ollama + cloud)                       |
+| `@bettertest/reporter`  | Built-in reporters (HTML, JSON, JUnit, console) |
 
 ---
 
@@ -83,6 +83,7 @@ INSTALL_DIR=~/.local/bin curl -fsSL .../install.sh | sh
 ```
 
 Supports:
+
 - Linux x64 / arm64
 - macOS x64 (Intel) / arm64 (Apple Silicon)
 
@@ -106,13 +107,13 @@ Requires Rust 1.85+ (edition 2024).
 
 Download the binary for your platform from the [Releases page](https://github.com/jaredhoward/better-test-automation/releases):
 
-| Platform | Binary |
-|----------|--------|
-| Linux x64 | `bettertest-linux-x64` |
-| Linux ARM64 | `bettertest-linux-arm64` |
-| macOS x64 (Intel) | `bettertest-darwin-x64` |
-| macOS ARM64 (Apple Silicon) | `bettertest-darwin-arm64` |
-| Windows x64 | `bettertest-windows-x64.exe` |
+| Platform                    | Binary                       |
+| --------------------------- | ---------------------------- |
+| Linux x64                   | `bettertest-linux-x64`       |
+| Linux ARM64                 | `bettertest-linux-arm64`     |
+| macOS x64 (Intel)           | `bettertest-darwin-x64`      |
+| macOS ARM64 (Apple Silicon) | `bettertest-darwin-arm64`    |
+| Windows x64                 | `bettertest-windows-x64.exe` |
 
 Then move it to your PATH:
 

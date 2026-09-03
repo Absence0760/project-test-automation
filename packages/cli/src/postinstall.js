@@ -29,8 +29,8 @@ async function main() {
   if (!artifact) {
     console.error(
       `[bettertest] Unsupported platform: ${platform}\n` +
-      `Supported: ${Object.keys(PLATFORM_MAP).join(', ')}\n` +
-      'You can build from source with: cargo build --release -p bettertest-cli',
+        `Supported: ${Object.keys(PLATFORM_MAP).join(', ')}\n` +
+        'You can build from source with: cargo build --release -p bettertest-cli',
     );
     process.exit(1);
   }
@@ -77,15 +77,15 @@ async function main() {
   } catch (error) {
     console.error(
       `[bettertest] Failed to download binary: ${error.message}\n` +
-      '\n' +
-      'This can happen if:\n' +
-      `  - Version v${version} has not been released yet\n` +
-      `  - Your platform (${platform}) is not supported\n` +
-      '  - You are behind a corporate proxy\n' +
-      '\n' +
-      'Alternative install methods:\n' +
-      '  curl -fsSL https://raw.githubusercontent.com/jaredhoward/better-test-automation/main/scripts/install.sh | sh\n' +
-      '  cargo install bettertest-cli\n',
+        '\n' +
+        'This can happen if:\n' +
+        `  - Version v${version} has not been released yet\n` +
+        `  - Your platform (${platform}) is not supported\n` +
+        '  - You are behind a corporate proxy\n' +
+        '\n' +
+        'Alternative install methods:\n' +
+        '  curl -fsSL https://raw.githubusercontent.com/jaredhoward/better-test-automation/main/scripts/install.sh | sh\n' +
+        '  cargo install bettertest-cli\n',
     );
     // Don't fail the install — the user can still use the TS packages
     process.exit(0);

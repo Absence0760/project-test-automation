@@ -26,9 +26,7 @@ export class JunitReporter implements Reporter {
 
   private generateXml(data: ReportData): string {
     const { summary } = data;
-    const suites = data.suites
-      .map((suite) => this.renderSuite(suite))
-      .join('\n');
+    const suites = data.suites.map((suite) => this.renderSuite(suite)).join('\n');
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <testsuites tests="${summary.total}" failures="${summary.failed}" time="${(summary.durationMs / 1000).toFixed(3)}">

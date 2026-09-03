@@ -61,9 +61,7 @@ export class LocalAiProvider implements AiProvider {
     });
 
     if (!response.ok) {
-      throw new Error(
-        `Ollama request failed: ${response.status} ${response.statusText}`,
-      );
+      throw new Error(`Ollama request failed: ${response.status} ${response.statusText}`);
     }
 
     const data = (await response.json()) as { response: string };
@@ -101,8 +99,7 @@ export class LocalAiProvider implements AiProvider {
   }
 
   private buildFlakinessPrompt(history: FlakinessContext): string {
-    const passRate =
-      history.results.filter((r) => r.passed).length / history.results.length;
+    const passRate = history.results.filter((r) => r.passed).length / history.results.length;
     return [
       `Analyze flakiness for test: ${history.testName}`,
       `Pass rate: ${(passRate * 100).toFixed(1)}%`,

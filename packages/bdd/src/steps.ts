@@ -38,10 +38,7 @@ export interface StepContext {
   get<T = unknown>(key: string): T;
 }
 
-export type StepHandler = (
-  ctx: StepContext,
-  ...args: string[]
-) => Promise<void>;
+export type StepHandler = (ctx: StepContext, ...args: string[]) => Promise<void>;
 
 export interface StepDefinition {
   keyword: 'Given' | 'When' | 'Then' | 'And' | 'But';
@@ -66,16 +63,11 @@ export class StepRegistry {
     for (const def of this.steps) {
       if (typeof def.pattern === 'string') {
         // Exact match or parameterized match
-        const paramPattern = def.pattern.replace(
-          /\{(\w+)}/g,
-          '(?<$1>"[^"]*"|[^\\s]+)',
-        );
+        const paramPattern = def.pattern.replace(/\{(\w+)}/g, '(?<$1>"[^"]*"|[^\\s]+)');
         const regex = new RegExp(`^${paramPattern}$`);
         const match = text.match(regex);
         if (match) {
-          const args = Object.values(match.groups ?? {}).map((a) =>
-            a.replace(/^"|"$/g, ''),
-          );
+          const args = Object.values(match.groups ?? {}).map((a) => a.replace(/^"|"$/g, ''));
           return { definition: def, args };
         }
       } else {

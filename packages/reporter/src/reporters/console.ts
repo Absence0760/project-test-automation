@@ -6,7 +6,9 @@ import type { ReportData, Reporter, RunStartData, SuiteReport, TestReport } from
 export class ConsoleReporter implements Reporter {
   onRunStart(data: RunStartData): void {
     console.log();
-    console.log(`  Better Test Automation — running ${data.totalTests} tests across ${data.totalSuites} suites`);
+    console.log(
+      `  Better Test Automation — running ${data.totalTests} tests across ${data.totalSuites} suites`,
+    );
     console.log(`  Workers: ${data.workers} | Started: ${data.startedAt}`);
     console.log();
   }
@@ -25,12 +27,16 @@ export class ConsoleReporter implements Reporter {
     }
 
     if (result.flakiness) {
-      console.log(`      Flaky: ${result.flakiness.classification} — ${result.flakiness.explanation}`);
+      console.log(
+        `      Flaky: ${result.flakiness.classification} — ${result.flakiness.explanation}`,
+      );
     }
 
     if (result.healing && result.healing.length > 0) {
       for (const heal of result.healing) {
-        console.log(`      Healed: ${heal.original} -> ${heal.replacement} (${(heal.confidence * 100).toFixed(0)}% confidence)`);
+        console.log(
+          `      Healed: ${heal.original} -> ${heal.replacement} (${(heal.confidence * 100).toFixed(0)}% confidence)`,
+        );
       }
     }
   }

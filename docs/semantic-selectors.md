@@ -10,20 +10,21 @@ Every test automation tool today makes you describe elements by their technical 
 
 ```javascript
 // Cypress — CSS selectors, data attributes
-cy.get('[data-testid="submit-btn"]')
-cy.get('#login-form > div:nth-child(3) > button.MuiButton-root')
+cy.get('[data-testid="submit-btn"]');
+cy.get('#login-form > div:nth-child(3) > button.MuiButton-root');
 
 // Playwright — slightly better, but still structural
-page.locator('[data-testid="submit-btn"]')
-page.getByRole('button', { name: 'Submit' })
+page.locator('[data-testid="submit-btn"]');
+page.getByRole('button', { name: 'Submit' });
 
 // Selenium — XPath soup
-driver.findElement(By.xpath("//form[@id='login']//button[@type='submit']"))
+driver.findElement(By.xpath("//form[@id='login']//button[@type='submit']"));
 ```
 
 These are all **structural selectors** — they describe the DOM's shape, not the user's intent.
 
 The moment a developer:
+
 - Renames a CSS class
 - Restructures the form layout
 - Swaps a UI library (MUI to shadcn)
@@ -75,15 +76,16 @@ Cache lookup → found previous resolution?
 
 The natural language intent is decomposed into structured query components:
 
-| Intent | Parsed Role | Parsed Name | Parsed Scope |
-|--------|-------------|-------------|--------------|
-| "the submit button" | `button` | "submit" | — |
-| "the email input field" | `textbox` | "email" | — |
-| "the save button in the profile form" | `button` | "save" | "profile form" |
-| "the navigation menu" | `navigation` | — | — |
-| "the first item in the results list" | `listitem` | — | "results list" (position: 1) |
+| Intent                                | Parsed Role  | Parsed Name | Parsed Scope                 |
+| ------------------------------------- | ------------ | ----------- | ---------------------------- |
+| "the submit button"                   | `button`     | "submit"    | —                            |
+| "the email input field"               | `textbox`    | "email"     | —                            |
+| "the save button in the profile form" | `button`     | "save"      | "profile form"               |
+| "the navigation menu"                 | `navigation` | —           | —                            |
+| "the first item in the results list"  | `listitem`   | —           | "results list" (position: 1) |
 
 Keywords map to ARIA roles:
+
 - button, btn → `role="button"`
 - input, field, textbox → `role="textbox"`
 - link → `role="link"`
@@ -107,12 +109,14 @@ Accessibility tree for the page:
 ```
 
 Matching logic:
+
 1. Filter by role (`button`)
 2. Score by name similarity ("submit" vs "Sign in" — semantic similarity, not exact match)
 3. Apply scope constraints ("in the login form" → filter to descendants of `role="form"` named "Login")
 4. Return highest-scoring match with confidence
 
 **Why accessibility-first?** Because:
+
 - It's what the browser already computes for screen readers
 - It reflects semantic meaning, not visual implementation
 - It's stable across UI library changes (MUI and shadcn both produce the same ARIA tree)
@@ -137,6 +141,7 @@ Page layout:
 ```
 
 Heuristics used:
+
 - **Position in form**: Button at bottom of a form group → likely submit action
 - **Proximity to inputs**: Button near labeled inputs → likely related form action
 - **Size relative to siblings**: Primary action buttons are typically larger
@@ -156,12 +161,14 @@ Candidates for "submit button":
 ```
 
 The NLP matcher understands that in a login context:
+
 - "Submit" = "Sign in" = "Log in" = "Continue" = "Go"
-- These are all the same *intent* expressed differently
+- These are all the same _intent_ expressed differently
 
 ### Step 6: Cache + Return
 
 The winning resolution is:
+
 1. Cached for future runs (with the element's fingerprint)
 2. Returned to the test step for interaction
 
@@ -171,13 +178,13 @@ The winning resolution is:
 
 Every resolution strategy returns a confidence score from 0.0 to 1.0:
 
-| Score | Meaning | Example |
-|-------|---------|---------|
-| 0.95+ | Near-certain match | Exact role + exact name in accessibility tree |
-| 0.8-0.95 | Strong match | Right role, close name ("submit" → "Sign in") |
-| 0.7-0.8 | Probable match | Visual heuristics confirm position + context |
-| 0.5-0.7 | Uncertain | Multiple candidates, weak differentiation |
-| < 0.5 | Unlikely | No good match found |
+| Score    | Meaning            | Example                                       |
+| -------- | ------------------ | --------------------------------------------- |
+| 0.95+    | Near-certain match | Exact role + exact name in accessibility tree |
+| 0.8-0.95 | Strong match       | Right role, close name ("submit" → "Sign in") |
+| 0.7-0.8  | Probable match     | Visual heuristics confirm position + context  |
+| 0.5-0.7  | Uncertain          | Multiple candidates, weak differentiation     |
+| < 0.5    | Unlikely           | No good match found                           |
 
 The default threshold is **0.7** (configurable in `bettertest.config.ts`). Below this, the selector fails rather than clicking the wrong element.
 
@@ -202,6 +209,7 @@ When a selector resolves, we capture a fingerprint of the matched element:
 ```
 
 On the next run, the cache check validates the fingerprint:
+
 - Is there still a `<button>` with text "Sign in" at roughly (150, 340)?
 - If yes → use cached resolution (fast path)
 - If no → the element drifted, trigger re-resolution or self-healing
@@ -212,14 +220,15 @@ On the next run, the cache check validates the fingerprint:
 
 Semantic selectors are what make self-healing **possible**. Consider:
 
-| Selector type | Can it heal? | Why? |
-|---|---|---|
-| `div:nth-child(3) > button` | No | The structural path is just wrong. There's nothing to infer intent from. |
-| `[data-testid="submit-btn"]` | No | The attribute was removed or renamed. No semantic context to find the new one. |
-| `getByRole('button', { name: 'Submit' })` | Partially | Knows the role, but if the name changes to "Continue", it fails. |
-| `select('the submit button')` | **Yes** | The engine knows the *intent*. It can re-resolve against the new DOM using all strategies. |
+| Selector type                             | Can it heal? | Why?                                                                                       |
+| ----------------------------------------- | ------------ | ------------------------------------------------------------------------------------------ |
+| `div:nth-child(3) > button`               | No           | The structural path is just wrong. There's nothing to infer intent from.                   |
+| `[data-testid="submit-btn"]`              | No           | The attribute was removed or renamed. No semantic context to find the new one.             |
+| `getByRole('button', { name: 'Submit' })` | Partially    | Knows the role, but if the name changes to "Continue", it fails.                           |
+| `select('the submit button')`             | **Yes**      | The engine knows the _intent_. It can re-resolve against the new DOM using all strategies. |
 
 When healing triggers:
+
 1. The semantic intent is preserved ("the submit button")
 2. The fingerprint from the last-passing run is loaded
 3. The current DOM is searched for the closest matching element
@@ -237,18 +246,18 @@ When healing triggers:
 import { select, within } from '@bettertest/selectors';
 
 // Basic semantic selector
-select('the submit button')
+select('the submit button');
 
 // Scoped selector
-select('the save button').within('the profile form')
+select('the save button').within('the profile form');
 
 // With confidence override
-select('the delete button').confidence(0.9)
+select('the delete button').confidence(0.9);
 
 // Shorthand for scoping
 const form = within('the settings form');
-form.select('the email input')
-form.select('the save button')
+form.select('the email input');
+form.select('the save button');
 ```
 
 ### In Gherkin steps
@@ -269,8 +278,8 @@ And they fill in the email input with "user@example.com"
 // bettertest.config.ts
 export default defineConfig({
   selectors: {
-    minConfidence: 0.7,      // reject matches below this
-    autoHeal: true,          // auto-update resolution cache on drift
+    minConfidence: 0.7, // reject matches below this
+    autoHeal: true, // auto-update resolution cache on drift
     cachePath: '.bettertest/selector-cache.json',
   },
 });
@@ -283,49 +292,56 @@ export default defineConfig({
 ### Scenario: Dev swaps UI library from MUI to shadcn
 
 **Cypress / Playwright (before):**
+
 ```javascript
 // These all break:
-cy.get('.MuiButton-root.MuiButton-contained')     // MUI class gone
-cy.get('.MuiTextField-root input')                  // MUI structure gone
-page.locator('.MuiCard-root >> .MuiCardHeader-title') // entire component tree changed
+cy.get('.MuiButton-root.MuiButton-contained'); // MUI class gone
+cy.get('.MuiTextField-root input'); // MUI structure gone
+page.locator('.MuiCard-root >> .MuiCardHeader-title'); // entire component tree changed
 ```
 
 **Better Test Automation:**
+
 ```typescript
 // These all still work:
-click('the submit button')    // resolved via ARIA, not CSS class
-fill('the email input', '...')  // resolved via role + label, not structure
-assertVisible('the card title') // resolved via heading role + proximity
+click('the submit button'); // resolved via ARIA, not CSS class
+fill('the email input', '...'); // resolved via role + label, not structure
+assertVisible('the card title'); // resolved via heading role + proximity
 ```
 
 ### Scenario: Form restructured with extra wrapper divs
 
 **Cypress:**
+
 ```javascript
-cy.get('#login-form > div:nth-child(3) > button')  // BREAKS — nth-child shifted
+cy.get('#login-form > div:nth-child(3) > button'); // BREAKS — nth-child shifted
 ```
 
 **Better Test Automation:**
+
 ```typescript
-select('the submit button').within('the login form')  // WORKS — structure irrelevant
+select('the submit button').within('the login form'); // WORKS — structure irrelevant
 ```
 
 ### Scenario: Button text changes "Submit" → "Continue"
 
 **Playwright:**
+
 ```javascript
-page.getByRole('button', { name: 'Submit' })  // BREAKS — name changed
+page.getByRole('button', { name: 'Submit' }); // BREAKS — name changed
 ```
 
 **Better Test Automation:**
+
 ```typescript
-select('the submit button')  // WORKS — re-resolves via context
+select('the submit button'); // WORKS — re-resolves via context
 // "Continue" is recognized as a submit-intent synonym in a form context
 ```
 
 ### Scenario: New developer writes their first test
 
 **Traditional:**
+
 ```
 1. Open browser DevTools
 2. Inspect element
@@ -334,6 +350,7 @@ select('the submit button')  // WORKS — re-resolves via context
 ```
 
 **Better Test Automation:**
+
 ```
 1. Describe what you want in English
 2. Done

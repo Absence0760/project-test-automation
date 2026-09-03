@@ -123,9 +123,7 @@ export class GherkinParser {
 
       // Scenario / Scenario Outline
       if (trimmed.startsWith('Scenario:') || trimmed.startsWith('Scenario Outline:')) {
-        const prefix = trimmed.startsWith('Scenario Outline:')
-          ? 'Scenario Outline:'
-          : 'Scenario:';
+        const prefix = trimmed.startsWith('Scenario Outline:') ? 'Scenario Outline:' : 'Scenario:';
         currentScenario = {
           name: trimmed.slice(prefix.length).trim(),
           tags: pendingTags,

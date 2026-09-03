@@ -39,7 +39,10 @@ describe('BrowserContext', () => {
     let navigatedUrl = '';
     const page = {
       ...mockPage(),
-      goto: async (url: string) => { navigatedUrl = url; return null; },
+      goto: async (url: string) => {
+        navigatedUrl = url;
+        return null;
+      },
     };
     const ctx = new BrowserContext(page as any, 'http://localhost:3000');
     await ctx.navigate('http://example.com/page');
@@ -50,7 +53,10 @@ describe('BrowserContext', () => {
     let navigatedUrl = '';
     const page = {
       ...mockPage(),
-      goto: async (url: string) => { navigatedUrl = url; return null; },
+      goto: async (url: string) => {
+        navigatedUrl = url;
+        return null;
+      },
     };
     const ctx = new BrowserContext(page as any, 'http://localhost:3000');
     await ctx.navigate('/login');
@@ -71,9 +77,7 @@ describe('BrowserContext', () => {
 
   it('error message includes the original intent', async () => {
     const ctx = new BrowserContext(mockPage() as any, '', false);
-    await expect(ctx.assertVisible('the welcome heading')).rejects.toThrow(
-      'the welcome heading',
-    );
+    await expect(ctx.assertVisible('the welcome heading')).rejects.toThrow('the welcome heading');
   });
 
   it('set/get works for cross-step state', () => {
@@ -97,7 +101,10 @@ describe('BrowserContext', () => {
     let navigatedUrl = '';
     const page = {
       ...mockPage(),
-      goto: async (url: string) => { navigatedUrl = url; return null; },
+      goto: async (url: string) => {
+        navigatedUrl = url;
+        return null;
+      },
     };
     const ctx = new BrowserContext(page as any, 'http://localhost:3000', true);
     await ctx.navigate('/login');
@@ -110,12 +117,15 @@ describe('BrowserContext', () => {
   it('finds element by ARIA label', async () => {
     let clicked = false;
     const mockElement = {
-      evaluate: async (fn: Function) => fn({ getAttribute: (a: string) => a === 'aria-label' ? 'email address' : null }),
-      click: async () => { clicked = true; },
+      evaluate: async (fn: Function) =>
+        fn({ getAttribute: (a: string) => (a === 'aria-label' ? 'email address' : null) }),
+      click: async () => {
+        clicked = true;
+      },
     };
     const page = {
       ...mockPage(),
-      $$: async (sel: string) => sel === '[aria-label]' ? [mockElement] : [],
+      $$: async (sel: string) => (sel === '[aria-label]' ? [mockElement] : []),
       waitForNavigation: async () => null,
     };
 
@@ -128,7 +138,9 @@ describe('BrowserContext', () => {
     let clicked = false;
     const mockButton = {
       evaluate: async (fn: Function) => fn({ textContent: 'Sign in', getAttribute: () => null }),
-      click: async () => { clicked = true; },
+      click: async () => {
+        clicked = true;
+      },
     };
     const page = {
       ...mockPage(),

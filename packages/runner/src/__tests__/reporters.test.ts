@@ -43,9 +43,9 @@ describe('createReporters', () => {
   });
 
   it('throws on unknown reporter type', () => {
-    expect(() =>
-      createReporters([{ type: 'unknown' as 'console' }]),
-    ).toThrow('Unknown reporter type');
+    expect(() => createReporters([{ type: 'unknown' as 'console' }])).toThrow(
+      'Unknown reporter type',
+    );
   });
 
   it('handles empty config array', () => {
