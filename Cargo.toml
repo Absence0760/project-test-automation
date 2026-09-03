@@ -41,7 +41,7 @@ crossterm = "0.29"
 
 # NAPI
 napi = { version = "2", features = ["async", "serde-json"] }
-napi-derive = "2"
+napi-derive = "3"
 
 # Testing
 pretty_assertions = "1"
