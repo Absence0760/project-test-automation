@@ -38,7 +38,10 @@ jobs:
       - name: Require the released commit to be on main
         run: |
           set -euo pipefail
-          git fetch --quiet origin main
+          # Explicit refspec: `git fetch origin main` alone updates FETCH_HEAD
+          # and is not guaranteed to create refs/remotes/origin/main, which is
+          # what --is-ancestor resolves below.
+          git fetch --quiet origin +refs/heads/main:refs/remotes/origin/main
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
             echo "::error::Release commit $GITHUB_SHA is not an ancestor of origin/main."
             echo "Cut releases from main only — a tag on a feature branch must not publish."
