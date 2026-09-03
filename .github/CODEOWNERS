@@ -1,0 +1,26 @@
+# Path-based reviewer routing. GitHub automatically requests review from
+# the listed owner when a PR touches matching files.
+#
+# Order matters — last matching line wins. The catch-all line below means a
+# PR with no other matches still gets routed to the owner.
+
+# Catch-all — every file unless overridden below.
+*                                       @Absence0760
+
+# Build / release-impact paths
+/.github/workflows/                     @Absence0760
+/.github/dependabot.yml                 @Absence0760
+/.github/CODEOWNERS                     @Absence0760
+
+# Security-sensitive scaffolding
+/SECURITY.md                            @Absence0760
+/.pre-commit-config.yaml                @Absence0760
+
+# Rust core — the execution, selector, and healing engines
+/crates/                                @Absence0760
+
+# Published npm packages
+/packages/                              @Absence0760
+
+# Claude tooling
+/CLAUDE.md                              @Absence0760
