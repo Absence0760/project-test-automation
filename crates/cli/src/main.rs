@@ -96,9 +96,7 @@ async fn main() -> Result<()> {
 
     // Initialize tracing
     let filter = if cli.verbose { "debug" } else { "info" };
-    tracing_subscriber::fmt()
-        .with_env_filter(filter)
-        .init();
+    tracing_subscriber::fmt().with_env_filter(filter).init();
 
     match cli.command {
         Commands::Run {

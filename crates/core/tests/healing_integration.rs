@@ -1,4 +1,4 @@
-use bettertest_core::healing::{DomDiff};
+use bettertest_core::healing::DomDiff;
 use bettertest_core::healing::diff::DomChange;
 
 #[test]

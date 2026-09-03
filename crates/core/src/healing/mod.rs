@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// 1. Captures the DOM diff between last-passing and current run
 /// 2. Proposes the corrected selector
 /// 3. Optionally auto-patches the test file (with git diff review step)
+#[derive(Default)]
 pub struct Healer {
     /// Whether to auto-apply fixes or just propose them.
     pub auto_apply: bool,
@@ -33,12 +34,6 @@ pub struct HealingProposal {
 
     /// The DOM diff that triggered the healing.
     pub dom_diff: DomDiff,
-}
-
-impl Default for Healer {
-    fn default() -> Self {
-        Self { auto_apply: false }
-    }
 }
 
 impl Healer {

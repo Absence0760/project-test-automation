@@ -1,5 +1,5 @@
 use bettertest_core::executor::{
-    TestResult, TestStatus, TestError, FlakinessClassification, StepResult,
+    FlakinessClassification, StepResult, TestError, TestResult, TestStatus,
 };
 
 #[test]
@@ -70,7 +70,10 @@ fn all_flakiness_classifications_serialize() {
 
     for classification in classifications {
         let json = serde_json::to_value(&classification).unwrap();
-        assert!(json.is_string(), "Classification should serialize as string");
+        assert!(
+            json.is_string(),
+            "Classification should serialize as string"
+        );
     }
 }
 

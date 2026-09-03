@@ -1,7 +1,6 @@
 use bettertest_core::selector::{
-    ResolvedSelector, ResolutionStrategy, SemanticSelector, ElementFingerprint, BoundingBox,
-    SelectorResolver,
-    resolver::ResolutionContext,
+    BoundingBox, ElementFingerprint, ResolutionStrategy, ResolvedSelector, SelectorResolver,
+    SemanticSelector, resolver::ResolutionContext,
 };
 
 #[test]

@@ -21,7 +21,9 @@ pub enum TestStatus {
     Failed,
     Skipped,
     /// Test was flaky — passed on retry but failed initially.
-    Flaky { attempts: u32 },
+    Flaky {
+        attempts: u32,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -1,5 +1,5 @@
-use napi_derive::napi;
 use bettertest_core::selector::SemanticSelector;
+use napi_derive::napi;
 
 #[napi]
 pub fn create_selector(intent: String, scope: Option<String>) -> napi::Result<String> {
@@ -23,8 +23,8 @@ pub fn parse_accessibility_intent(intent: String) -> napi::Result<String> {
 /// This will be the main entry point from the TypeScript runner into the Rust core.
 #[napi]
 pub async fn run_tests(config_json: String) -> napi::Result<String> {
-    let _config: serde_json::Value = serde_json::from_str(&config_json)
-        .map_err(|e| napi::Error::from_reason(e.to_string()))?;
+    let _config: serde_json::Value =
+        serde_json::from_str(&config_json).map_err(|e| napi::Error::from_reason(e.to_string()))?;
 
     // TODO: Bridge to bettertest-core execution engine
     Ok(r#"{"status": "not_implemented"}"#.to_string())

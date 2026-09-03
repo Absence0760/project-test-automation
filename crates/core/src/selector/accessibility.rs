@@ -76,8 +76,25 @@ pub struct AccessibilityQuery {
 fn extract_name_hint(intent: &str) -> Option<String> {
     // Strip common filler words and element type words to get the name hint
     let stop_words = [
-        "the", "a", "an", "in", "on", "at", "button", "input", "field", "link", "menu",
-        "navigation", "nav", "heading", "title", "form", "click", "find", "select",
+        "the",
+        "a",
+        "an",
+        "in",
+        "on",
+        "at",
+        "button",
+        "input",
+        "field",
+        "link",
+        "menu",
+        "navigation",
+        "nav",
+        "heading",
+        "title",
+        "form",
+        "click",
+        "find",
+        "select",
     ];
 
     let words: Vec<&str> = intent

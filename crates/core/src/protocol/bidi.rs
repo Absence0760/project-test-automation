@@ -82,11 +82,10 @@ impl BiDiSession {
             params,
         };
 
-        let msg = serde_json::to_string(&command)
-            .map_err(|e| ProtocolError::Command {
-                method: method.to_string(),
-                message: e.to_string(),
-            })?;
+        let msg = serde_json::to_string(&command).map_err(|e| ProtocolError::Command {
+            method: method.to_string(),
+            message: e.to_string(),
+        })?;
 
         conn.write
             .send(Message::Text(msg.into()))
@@ -95,8 +94,8 @@ impl BiDiSession {
 
         // Read response
         if let Some(Ok(Message::Text(text))) = conn.read.next().await {
-            let response: BiDiResponse = serde_json::from_str(&text)
-                .map_err(|e| ProtocolError::WebSocket(e.to_string()))?;
+            let response: BiDiResponse =
+                serde_json::from_str(&text).map_err(|e| ProtocolError::WebSocket(e.to_string()))?;
 
             if let Some(err) = response.error {
                 return Err(ProtocolError::Command {
@@ -107,9 +106,7 @@ impl BiDiSession {
 
             Ok(response.result.unwrap_or(serde_json::Value::Null))
         } else {
-            Err(ProtocolError::WebSocket(
-                "No response received".to_string(),
-            ))
+            Err(ProtocolError::WebSocket("No response received".to_string()))
         }
     }
 }
