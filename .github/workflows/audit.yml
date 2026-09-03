@@ -45,7 +45,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned to the tip of the action's `stable` branch. This freezes the
+        # action code, not the Rust version — rustup still resolves "stable"
+        # to the current release at run time.
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable @ 2026-09-03
 
       - name: Cache cargo-audit binary
         id: cargo-audit-cache
