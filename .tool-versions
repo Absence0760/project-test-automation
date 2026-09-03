@@ -1,0 +1,11 @@
+# Toolchain versions for asdf / mise / rtx.
+#
+# Run `asdf install` (or `mise install`) in this directory to materialise
+# everything listed below. The format is `<plugin> <version>` per line.
+#
+# Node is pinned to match `engines.node` in package.json and the
+# `node-version` used across .github/workflows/. pnpm comes from the
+# `packageManager` field in package.json, not from here.
+
+nodejs 22
+rust 1.97.0
