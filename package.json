@@ -15,9 +15,9 @@
     "demo:watch": "tsx --watch apps/demo/server.ts"
   },
   "devDependencies": {
-    "prettier": "^3.8.2",
+    "prettier": "^3.9.6",
     "prettier-plugin-svelte": "^3.5.1",
-    "tsx": "^4.21.0",
+    "tsx": "^4.23.13",
     "typescript": "^6.0.2"
   },
   "packageManager": "pnpm@10.8.1",
