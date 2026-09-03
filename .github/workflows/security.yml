@@ -42,7 +42,7 @@ jobs:
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     permissions:
       contents: read
       # SARIF upload requires `security-events: write` for the analyze step
@@ -55,53 +55,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # build-mode varies by language, so this is an `include` matrix rather
-        # than the plain `language: [...]` list the other repos use.
+        # javascript-typescript covers packages/*, apps/demo, and the SvelteKit
+        # dashboard. The extractor picks up .ts, .js, and .svelte automatically.
         #
-        # javascript-typescript covers packages/*, apps/demo, and the
-        # SvelteKit dashboard. The extractor picks up .ts, .js, and .svelte
-        # automatically, and needs no build.
-        #
-        # actions covers every workflow under .github/workflows/. The query
-        # set flags untrusted-input -> shell-script injection (e.g. a PR title
+        # actions covers every workflow under .github/workflows/. The query set
+        # flags untrusted-input -> shell-script injection (e.g. a PR title
         # interpolated into a `run:` block) and unpinned action references.
         #
-        # rust covers crates/*. Unlike the interpreted languages it needs a
-        # real compile, so it uses `autobuild` (which runs cargo build) and
-        # gets the longer timeout above.
-        include:
-          - language: javascript-typescript
-            build-mode: none
-          - language: actions
-            build-mode: none
-          - language: rust
-            build-mode: autobuild
+        # rust covers crates/*. Despite being a compiled language its extractor
+        # requires build-mode `none` and rejects `autobuild` outright
+        # ("Rust does not support the autobuild build mode"), so all three
+        # languages share the same build mode and no toolchain setup is needed.
+        language: [javascript-typescript, actions, rust]
 
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install Rust toolchain
-        if: matrix.language == 'rust'
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache Cargo
-        if: matrix.language == 'rust'
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: codeql-cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: codeql-cargo-${{ runner.os }}-
-
       - name: Initialize CodeQL
         uses: github/codeql-action/init@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4
         with:
           languages: ${{ matrix.language }}
-          build-mode: ${{ matrix.build-mode }}
+          # No compile step for any of the three — see the matrix comment.
+          build-mode: none
           # security-and-quality is the broadest of the three suites
           # (security < security-extended < security-and-quality). For a
           # codebase this size the extra noise is manageable. Languages that
