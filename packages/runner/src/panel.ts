@@ -57,7 +57,13 @@ export class PanelState {
   /** Queued replay requests: { scenarioId, stepIdx } */
   private _replayQueue: Array<{ scenarioId: string; stepIdx: number }> = [];
 
-  constructor(panelPage: Page | null, enabled: boolean, server?: Server, port = 0, appBaseUrl = '') {
+  constructor(
+    panelPage: Page | null,
+    enabled: boolean,
+    server?: Server,
+    port = 0,
+    appBaseUrl = '',
+  ) {
     this.panelPage = panelPage;
     this.enabled = enabled;
     this.server = server ?? null;
@@ -66,13 +72,20 @@ export class PanelState {
   }
 
   /** Is the runner currently paused? */
-  isPaused(): boolean { return this._paused; }
+  isPaused(): boolean {
+    return this._paused;
+  }
 
   /** Has the user requested a stop? */
-  isStopped(): boolean { return this._stopped; }
+  isStopped(): boolean {
+    return this._stopped;
+  }
 
   /** Pause execution. The runner's step loop will wait. */
-  pause(): void { this._paused = true; this.updatePauseState(); }
+  pause(): void {
+    this._paused = true;
+    this.updatePauseState();
+  }
 
   /** Resume execution after a pause. */
   resume(): void {
@@ -136,7 +149,13 @@ export class PanelState {
    * Show the test picker and wait for the user to select and click "Run".
    * Returns the IDs of selected scenarios.
    */
-  async showPickerAndWait(suites: Array<{ name: string; filePath: string; tests: Array<{ id: string; name: string; tags: string[] }> }>): Promise<string[]> {
+  async showPickerAndWait(
+    suites: Array<{
+      name: string;
+      filePath: string;
+      tests: Array<{ id: string; name: string; tags: string[] }>;
+    }>,
+  ): Promise<string[]> {
     if (!this.enabled || !this.panelPage) {
       return suites.flatMap((s) => s.tests.map((t) => t.id));
     }
@@ -165,7 +184,10 @@ export class PanelState {
       pickerHtml += `</div>`;
       for (const test of suite.tests) {
         const escapedId = esc(test.id);
-        const tags = test.tags.length > 0 ? ` <span class="bta-picker-tags">${test.tags.map((t) => esc(t)).join(' ')}</span>` : '';
+        const tags =
+          test.tags.length > 0
+            ? ` <span class="bta-picker-tags">${test.tags.map((t) => esc(t)).join(' ')}</span>`
+            : '';
         pickerHtml += `<label class="bta-picker-item"><input type="checkbox" value="${escapedId}" /><span>${esc(test.name)}</span>${tags}</label>`;
       }
       pickerHtml += `</div>`;
@@ -179,9 +201,9 @@ export class PanelState {
     const fullPickerHtml =
       '<div class="bta-picker">' +
       '<div class="bta-picker-actions">' +
-        `<button class="bta-btn bta-btn-green bta-picker-run" onclick="${esc(runBtnOnclick)}"><span class="bta-btn-icon">\u25B6</span> Run Selected</button>` +
-        `<button class="bta-btn bta-btn-blue" onclick="${esc(selectAllOnclick)}">Select All</button>` +
-        `<button class="bta-btn bta-btn-blue" onclick="${esc(selectNoneOnclick)}">Select None</button>` +
+      `<button class="bta-btn bta-btn-green bta-picker-run" onclick="${esc(runBtnOnclick)}"><span class="bta-btn-icon">\u25B6</span> Run Selected</button>` +
+      `<button class="bta-btn bta-btn-blue" onclick="${esc(selectAllOnclick)}">Select All</button>` +
+      `<button class="bta-btn bta-btn-blue" onclick="${esc(selectNoneOnclick)}">Select None</button>` +
       '</div>' +
       pickerHtml +
       '</div>';
@@ -282,16 +304,32 @@ export class PanelState {
   async scenarioRunning(id: string): Promise<void> {
     const sc = this.scenarios.find((s) => s.id === id);
     if (sc) sc.status = 'running';
-    await this.eval(`var el=document.querySelector('#bsc-${esc(id)} .bsh');if(el){el.className='bsh running';el.querySelector('.bi').textContent='\\u25B6'}`);
+    await this.eval(
+      `var el=document.querySelector('#bsc-${esc(id)} .bsh');if(el){el.className='bsh running';el.querySelector('.bi').textContent='\\u25B6'}`,
+    );
   }
 
   /** Mark scenario done + update stats in one call. */
-  async scenarioDone(id: string, status: 'passed' | 'failed', durationMs: number, passed: number, failed: number, total: number, totalDurationMs: number): Promise<void> {
+  async scenarioDone(
+    id: string,
+    status: 'passed' | 'failed',
+    durationMs: number,
+    passed: number,
+    failed: number,
+    total: number,
+    totalDurationMs: number,
+  ): Promise<void> {
     const sc = this.scenarios.find((s) => s.id === id);
-    if (sc) { sc.status = status; sc.durationMs = durationMs; }
+    if (sc) {
+      sc.status = status;
+      sc.durationMs = durationMs;
+    }
     this.stats = { passed, failed, total, durationMs: totalDurationMs };
     const icon = status === 'passed' ? '\\u2713' : '\\u2717';
-    const collapse = status === 'passed' ? `var p=document.getElementById('bsc-${esc(id)}');if(p)p.classList.add('collapsed');` : '';
+    const collapse =
+      status === 'passed'
+        ? `var p=document.getElementById('bsc-${esc(id)}');if(p)p.classList.add('collapsed');`
+        : '';
     await this.eval(`
       var el=document.querySelector('#bsc-${esc(id)} .bsh');
       if(el){el.className='bsh ${status}';el.querySelector('.bi').textContent='${icon}';el.querySelector('.bd').textContent='${Math.round(durationMs)}ms'}
@@ -308,11 +346,18 @@ export class PanelState {
     if (sc) sc.steps.push({ description, status: 'running', durationMs: 0 });
     const stepId = `bs-${esc(scenarioId)}-${stepIdx}`;
     const html = `<div class="bs running" id="${stepId}" style="display:flex;align-items:center"><span style="flex:1">${esc(description)}</span></div>`;
-    await this.eval(`var c=document.getElementById('bst-${esc(scenarioId)}');if(c){c.insertAdjacentHTML('beforeend',${JSON.stringify(html)})};var sc=document.getElementById('bta-sc');if(sc)sc.scrollTop=sc.scrollHeight`);
+    await this.eval(
+      `var c=document.getElementById('bst-${esc(scenarioId)}');if(c){c.insertAdjacentHTML('beforeend',${JSON.stringify(html)})};var sc=document.getElementById('bta-sc');if(sc)sc.scrollTop=sc.scrollHeight`,
+    );
   }
 
   /** Mark step passed — snapshot captured in parallel with eval. */
-  async stepPassed(scenarioId: string, stepIdx: number, durationMs: number, frame?: Frame): Promise<void> {
+  async stepPassed(
+    scenarioId: string,
+    stepIdx: number,
+    durationMs: number,
+    frame?: Frame,
+  ): Promise<void> {
     const step = this.scenarios.find((s) => s.id === scenarioId)?.steps[stepIdx];
     if (step) {
       step.status = 'passed';
@@ -329,10 +374,17 @@ export class PanelState {
       : '';
     const replayUrl = `http://127.0.0.1:${this.serverPort}/api/replay?scenario=${encodeURIComponent(scenarioId)}&step=${stepIdx}`;
     const innerHtml = `<span style="flex:1" class="clickable"${snapshotClick}><span class="si">\u2713 </span>${esc(step?.description ?? '')} <span class="bm">${Math.round(durationMs)}ms</span></span><span class="bta-replay" onclick="event.stopPropagation();fetch('${replayUrl}')" title="Replay">\u21BB</span>`;
-    await this.eval(`var el=document.getElementById('${stepId}');if(el){el.className='bs passed clickable';el.style.display='flex';el.style.alignItems='center';el.innerHTML=${JSON.stringify(innerHtml)}}`);
+    await this.eval(
+      `var el=document.getElementById('${stepId}');if(el){el.className='bs passed clickable';el.style.display='flex';el.style.alignItems='center';el.innerHTML=${JSON.stringify(innerHtml)}}`,
+    );
   }
 
-  async stepFailed(scenarioId: string, stepIdx: number, errorMsg: string, frame?: Frame): Promise<void> {
+  async stepFailed(
+    scenarioId: string,
+    stepIdx: number,
+    errorMsg: string,
+    frame?: Frame,
+  ): Promise<void> {
     const step = this.scenarios.find((s) => s.id === scenarioId)?.steps[stepIdx];
     if (step) {
       step.status = 'failed';
@@ -346,7 +398,9 @@ export class PanelState {
     const replayUrl = `http://127.0.0.1:${this.serverPort}/api/replay?scenario=${encodeURIComponent(scenarioId)}&step=${stepIdx}`;
     const innerHtml = `<span style="flex:1"><span class="si">\u2717 </span>${esc(step?.description ?? '')}</span><span class="bta-replay" onclick="event.stopPropagation();fetch('${replayUrl}')" title="Replay">\u21BB</span>`;
     const errHtml = `<div class="be">${esc(errorMsg)}</div>`;
-    await this.eval(`var el=document.getElementById('${stepId}');if(el){el.className='bs failed';el.style.display='flex';el.style.alignItems='center';el.innerHTML=${JSON.stringify(innerHtml)};el.insertAdjacentHTML('afterend',${JSON.stringify(errHtml)})}`);
+    await this.eval(
+      `var el=document.getElementById('${stepId}');if(el){el.className='bs failed';el.style.display='flex';el.style.alignItems='center';el.innerHTML=${JSON.stringify(innerHtml)};el.insertAdjacentHTML('afterend',${JSON.stringify(errHtml)})}`,
+    );
   }
 
   /** Capture the current DOM from the iframe frame. */
@@ -354,7 +408,9 @@ export class PanelState {
     try {
       const html = await frame.content();
       this.snapshots.set(id, html);
-    } catch { /* frame might be navigating */ }
+    } catch {
+      /* frame might be navigating */
+    }
   }
 
   /** Get a stored snapshot by ID (used by the server). */
@@ -372,7 +428,12 @@ export class PanelState {
     `);
   }
 
-  async updateStats(passed: number, failed: number, total: number, durationMs: number): Promise<void> {
+  async updateStats(
+    passed: number,
+    failed: number,
+    total: number,
+    durationMs: number,
+  ): Promise<void> {
     this.stats = { passed, failed, total, durationMs };
     await this.eval(`
       var s=function(id,v){var e=document.getElementById(id);if(e)e.textContent=v};
@@ -392,7 +453,11 @@ export class PanelState {
   /** Small helper to evaluate JS in the panel page. */
   private async eval(js: string): Promise<void> {
     if (!this.enabled || !this.panelPage) return;
-    try { await this.panelPage.evaluate(js); } catch { /* panel closed */ }
+    try {
+      await this.panelPage.evaluate(js);
+    } catch {
+      /* panel closed */
+    }
   }
 
   /** Set up the controls bar (called once at start of run). */
@@ -428,7 +493,11 @@ export class PanelState {
 
 /** HTML-escape a string (runs in Node.js, not browser). */
 function esc(text: string): string {
-  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 /** Reference to the active panel, so the server can access snapshots. */
@@ -438,7 +507,10 @@ async function startPanelServer(html: string): Promise<{ port: number; server: S
   return new Promise((resolve) => {
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', 'http://localhost');
-      const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'GET,POST' };
+      const cors = {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET,POST',
+      };
 
       // API: pause
       if (url.pathname === '/api/pause') {
@@ -477,7 +549,9 @@ async function startPanelServer(html: string): Promise<{ port: number; server: S
       // API: run selected tests (from picker)
       if (url.pathname === '/api/run-selected' && req.method === 'POST') {
         let body = '';
-        req.on('data', (chunk: Buffer) => { body += chunk.toString(); });
+        req.on('data', (chunk: Buffer) => {
+          body += chunk.toString();
+        });
         req.on('end', () => {
           try {
             const { ids } = JSON.parse(body) as { ids: string[] };
@@ -500,7 +574,12 @@ async function startPanelServer(html: string): Promise<{ port: number; server: S
       // API: status
       if (url.pathname === '/api/status') {
         res.writeHead(200, { ...cors, 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ paused: activePanelRef?.isPaused(), stopped: activePanelRef?.isStopped() }));
+        res.end(
+          JSON.stringify({
+            paused: activePanelRef?.isPaused(),
+            stopped: activePanelRef?.isStopped(),
+          }),
+        );
         return;
       }
 
@@ -534,8 +613,8 @@ async function waitForAppFrame(page: Page, maxWait = 10_000): Promise<Frame> {
   const start = Date.now();
   while (Date.now() - start < maxWait) {
     const frames = page.frames();
-    const appFrame = frames.find((f) =>
-      f !== page.mainFrame() && f.url() !== 'about:blank' && f.url() !== '',
+    const appFrame = frames.find(
+      (f) => f !== page.mainFrame() && f.url() !== 'about:blank' && f.url() !== '',
     );
     if (appFrame) return appFrame;
     await new Promise((r) => setTimeout(r, 300));

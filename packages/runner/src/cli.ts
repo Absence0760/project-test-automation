@@ -122,11 +122,7 @@ function findConfig(explicit?: string): string | null {
     return null;
   }
 
-  const candidates = [
-    'bettertest.config.ts',
-    'bettertest.config.js',
-    'bettertest.config.mjs',
-  ];
+  const candidates = ['bettertest.config.ts', 'bettertest.config.js', 'bettertest.config.mjs'];
 
   for (const name of candidates) {
     const path = resolve(process.cwd(), name);

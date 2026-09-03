@@ -50,7 +50,16 @@ export class TestRunner {
   /** All discovered test cases — needed for step replay lookups. */
   private allTestCases: TestCase[] = [];
 
-  constructor(config: BetterTestConfig, runtimeOpts?: { verbose?: boolean; dryRun?: boolean; slowMs?: number; keepOpen?: boolean; headed?: boolean }) {
+  constructor(
+    config: BetterTestConfig,
+    runtimeOpts?: {
+      verbose?: boolean;
+      dryRun?: boolean;
+      slowMs?: number;
+      keepOpen?: boolean;
+      headed?: boolean;
+    },
+  ) {
     this.headed = runtimeOpts?.headed ?? !config.browser.headless;
     this.verbose = runtimeOpts?.verbose ?? false;
     this.dryRun = runtimeOpts?.dryRun ?? false;
@@ -128,18 +137,32 @@ export class TestRunner {
       await selectorCache.load();
 
       // In headed mode, set up sidebar panel + iframe
-      const { panel: p, appFrame, page: mainPage } = await PanelState.create(
-        launch.browser, this.headed, this.config.baseUrl ?? '',
-      );
+      const {
+        panel: p,
+        appFrame,
+        page: mainPage,
+      } = await PanelState.create(launch.browser, this.headed, this.config.baseUrl ?? '');
       panelRef = p;
 
       if (this.headed && appFrame !== mainPage.mainFrame()) {
         // Panel mode: BrowserContext targets the iframe
-        const browserCtx = new BrowserContext(mainPage, this.config.baseUrl, this.verbose, selectorCache, this.slowMs);
+        const browserCtx = new BrowserContext(
+          mainPage,
+          this.config.baseUrl,
+          this.verbose,
+          selectorCache,
+          this.slowMs,
+        );
         browserCtx.setupPanel(mainPage, appFrame);
         ctx = browserCtx;
       } else {
-        ctx = new BrowserContext(launch.page, this.config.baseUrl, this.verbose, selectorCache, this.slowMs);
+        ctx = new BrowserContext(
+          launch.page,
+          this.config.baseUrl,
+          this.verbose,
+          selectorCache,
+          this.slowMs,
+        );
       }
     }
 
@@ -201,118 +224,132 @@ export class TestRunner {
     this.allTestCases = suitesToRun.flatMap((s) => s.tests);
 
     try {
-    for (const suite of suitesToRun) {
-      if (aborted || panel.isStopped()) break;
+      for (const suite of suitesToRun) {
+        if (aborted || panel.isStopped()) break;
 
-      const suiteReport: SuiteReport = {
-        name: suite.name,
-        filePath: suite.filePath,
-        tests: [],
-        status: 'passed',
-        durationMs: 0,
-      };
+        const suiteReport: SuiteReport = {
+          name: suite.name,
+          filePath: suite.filePath,
+          tests: [],
+          status: 'passed',
+          durationMs: 0,
+        };
 
-      await notifyAll(reporters, 'onSuiteStart', suiteReport);
+        await notifyAll(reporters, 'onSuiteStart', suiteReport);
 
-      await panel.initSuite(suite.name, suite.tests.map((tc) => ({ id: this.sanitizeId(tc.id), name: tc.name })));
+        await panel.initSuite(
+          suite.name,
+          suite.tests.map((tc) => ({ id: this.sanitizeId(tc.id), name: tc.name })),
+        );
 
-      const suiteStart = performance.now();
+        const suiteStart = performance.now();
 
-      for (const testCase of suite.tests) {
-        if (aborted) break;
-        const scenarioId = this.sanitizeId(testCase.id);
+        for (const testCase of suite.tests) {
+          if (aborted) break;
+          const scenarioId = this.sanitizeId(testCase.id);
 
-        await panel.scenarioRunning(scenarioId);
+          await panel.scenarioRunning(scenarioId);
 
-        ctx.reset();
-        let result = await this.executeTest(testCase, suite.name, registry, ctx, panel);
+          ctx.reset();
+          let result = await this.executeTest(testCase, suite.name, registry, ctx, panel);
 
-        // Retry logic: if test failed and retries are configured, re-run
-        if (result.status === 'failed' && this.options.retries > 0) {
-          for (let retry = 1; retry <= this.options.retries; retry++) {
-            ctx.reset();
-            const retryResult = await this.executeTest(testCase, suite.name, registry, ctx);
-            if (retryResult.status === 'passed') {
-              // Passed on retry — mark as flaky
-              result = {
-                ...retryResult,
-                status: 'flaky',
-                flakiness: {
-                  classification: 'unknown',
-                  explanation: `Passed on retry ${retry} of ${this.options.retries} (failed on first attempt)`,
-                },
-              };
-              break;
+          // Retry logic: if test failed and retries are configured, re-run
+          if (result.status === 'failed' && this.options.retries > 0) {
+            for (let retry = 1; retry <= this.options.retries; retry++) {
+              ctx.reset();
+              const retryResult = await this.executeTest(testCase, suite.name, registry, ctx);
+              if (retryResult.status === 'passed') {
+                // Passed on retry — mark as flaky
+                result = {
+                  ...retryResult,
+                  status: 'flaky',
+                  flakiness: {
+                    classification: 'unknown',
+                    explanation: `Passed on retry ${retry} of ${this.options.retries} (failed on first attempt)`,
+                  },
+                };
+                break;
+              }
+              result = retryResult;
             }
-            result = retryResult;
+          }
+
+          const scStatus2 = result.status === 'failed' ? ('failed' as const) : ('passed' as const);
+          const pc2 =
+            allResults.filter((r) => r.status === 'passed' || r.status === 'flaky').length +
+            (scStatus2 === 'passed' ? 1 : 0);
+          const fc2 =
+            allResults.filter((r) => r.status === 'failed').length +
+            (scStatus2 === 'failed' ? 1 : 0);
+          await panel.scenarioDone(
+            scenarioId,
+            scStatus2,
+            result.durationMs,
+            pc2,
+            fc2,
+            allResults.length + 1,
+            performance.now() - runStart,
+          );
+
+          allResults.push(result);
+
+          const testReport: TestReport = {
+            id: result.testId,
+            name: testCase.name,
+            status: result.status,
+            durationMs: result.durationMs,
+            steps: result.steps.map((s) => ({
+              description: s.description,
+              status: s.status as 'passed' | 'failed' | 'skipped',
+              durationMs: s.durationMs,
+            })),
+            ...(result.error && {
+              error: {
+                message: result.error.message,
+                ...(result.error.stack && { stack: result.error.stack }),
+              },
+            }),
+          };
+
+          suiteReport.tests.push(testReport);
+          await notifyAll(reporters, 'onTestComplete', testReport);
+
+          if (result.status === 'failed' && this.options.failFast) {
+            aborted = true;
           }
         }
 
-        const scStatus2 = result.status === 'failed' ? 'failed' as const : 'passed' as const;
-        const pc2 = allResults.filter((r) => r.status === 'passed' || r.status === 'flaky').length + (scStatus2 === 'passed' ? 1 : 0);
-        const fc2 = allResults.filter((r) => r.status === 'failed').length + (scStatus2 === 'failed' ? 1 : 0);
-        await panel.scenarioDone(scenarioId, scStatus2, result.durationMs, pc2, fc2, allResults.length + 1, performance.now() - runStart);
+        suiteReport.durationMs = performance.now() - suiteStart;
+        suiteReport.status = suiteReport.tests.some((t) => t.status === 'failed')
+          ? 'failed'
+          : 'passed';
 
-        allResults.push(result);
-
-        const testReport: TestReport = {
-          id: result.testId,
-          name: testCase.name,
-          status: result.status,
-          durationMs: result.durationMs,
-          steps: result.steps.map((s) => ({
-            description: s.description,
-            status: s.status as 'passed' | 'failed' | 'skipped',
-            durationMs: s.durationMs,
-          })),
-          ...(result.error && {
-            error: {
-              message: result.error.message,
-              ...(result.error.stack && { stack: result.error.stack }),
-            },
-          }),
-        };
-
-        suiteReport.tests.push(testReport);
-        await notifyAll(reporters, 'onTestComplete', testReport);
-
-        if (result.status === 'failed' && this.options.failFast) {
-          aborted = true;
-        }
+        suiteReports.push(suiteReport);
+        await notifyAll(reporters, 'onSuiteComplete', suiteReport);
       }
 
-      suiteReport.durationMs = performance.now() - suiteStart;
-      suiteReport.status = suiteReport.tests.some((t) => t.status === 'failed')
-        ? 'failed'
-        : 'passed';
+      // Summary
+      const runDuration = performance.now() - runStart;
+      const summary: RunSummary = {
+        total: allResults.length,
+        passed: allResults.filter((r) => r.status === 'passed').length,
+        failed: allResults.filter((r) => r.status === 'failed').length,
+        skipped: allResults.filter((r) => r.status === 'skipped').length,
+        flaky: allResults.filter((r) => r.status === 'flaky').length,
+        durationMs: runDuration,
+      };
 
-      suiteReports.push(suiteReport);
-      await notifyAll(reporters, 'onSuiteComplete', suiteReport);
-    }
+      const reportData: ReportData = {
+        startedAt: runStartedAt,
+        completedAt: new Date().toISOString(),
+        durationMs: runDuration,
+        suites: suiteReports,
+        summary,
+      };
 
-    // Summary
-    const runDuration = performance.now() - runStart;
-    const summary: RunSummary = {
-      total: allResults.length,
-      passed: allResults.filter((r) => r.status === 'passed').length,
-      failed: allResults.filter((r) => r.status === 'failed').length,
-      skipped: allResults.filter((r) => r.status === 'skipped').length,
-      flaky: allResults.filter((r) => r.status === 'flaky').length,
-      durationMs: runDuration,
-    };
+      await notifyAll(reporters, 'onRunComplete', reportData);
 
-    const reportData: ReportData = {
-      startedAt: runStartedAt,
-      completedAt: new Date().toISOString(),
-      durationMs: runDuration,
-      suites: suiteReports,
-      summary,
-    };
-
-    await notifyAll(reporters, 'onRunComplete', reportData);
-
-    return allResults;
-
+      return allResults;
     } finally {
       if (selectorCache) {
         await selectorCache.save();
@@ -359,9 +396,18 @@ export class TestRunner {
     for (const suite of suitesToRun) {
       if (panel.isStopped()) break;
 
-      const suiteReport: SuiteReport = { name: suite.name, filePath: suite.filePath, tests: [], status: 'passed', durationMs: 0 };
+      const suiteReport: SuiteReport = {
+        name: suite.name,
+        filePath: suite.filePath,
+        tests: [],
+        status: 'passed',
+        durationMs: 0,
+      };
       await notifyAll(reporters, 'onSuiteStart', suiteReport);
-      await panel.initSuite(suite.name, suite.tests.map((tc) => ({ id: this.sanitizeId(tc.id), name: tc.name })));
+      await panel.initSuite(
+        suite.name,
+        suite.tests.map((tc) => ({ id: this.sanitizeId(tc.id), name: tc.name })),
+      );
 
       const suiteStart = performance.now();
       for (const testCase of suite.tests) {
@@ -375,21 +421,51 @@ export class TestRunner {
           for (let retry = 1; retry <= this.options.retries; retry++) {
             ctx.reset();
             const rr = await this.executeTest(testCase, suite.name, registry, ctx);
-            if (rr.status === 'passed') { result = { ...rr, status: 'flaky', flakiness: { classification: 'unknown', explanation: `Passed on retry ${retry}` } }; break; }
+            if (rr.status === 'passed') {
+              result = {
+                ...rr,
+                status: 'flaky',
+                flakiness: { classification: 'unknown', explanation: `Passed on retry ${retry}` },
+              };
+              break;
+            }
             result = rr;
           }
         }
 
         const scStatus = result.status === 'failed' ? 'failed' : 'passed';
-        const pc = allResults.filter((r) => r.status === 'passed' || r.status === 'flaky').length + (scStatus === 'passed' ? 1 : 0);
-        const fc = allResults.filter((r) => r.status === 'failed').length + (scStatus === 'failed' ? 1 : 0);
-        await panel.scenarioDone(scenarioId, scStatus, result.durationMs, pc, fc, allResults.length + 1, performance.now() - runStart);
+        const pc =
+          allResults.filter((r) => r.status === 'passed' || r.status === 'flaky').length +
+          (scStatus === 'passed' ? 1 : 0);
+        const fc =
+          allResults.filter((r) => r.status === 'failed').length + (scStatus === 'failed' ? 1 : 0);
+        await panel.scenarioDone(
+          scenarioId,
+          scStatus,
+          result.durationMs,
+          pc,
+          fc,
+          allResults.length + 1,
+          performance.now() - runStart,
+        );
 
         allResults.push(result);
         const testReport: TestReport = {
-          id: result.testId, name: testCase.name, status: result.status, durationMs: result.durationMs,
-          steps: result.steps.map((s) => ({ description: s.description, status: s.status as 'passed' | 'failed' | 'skipped', durationMs: s.durationMs })),
-          ...(result.error && { error: { message: result.error.message, ...(result.error.stack && { stack: result.error.stack }) } }),
+          id: result.testId,
+          name: testCase.name,
+          status: result.status,
+          durationMs: result.durationMs,
+          steps: result.steps.map((s) => ({
+            description: s.description,
+            status: s.status as 'passed' | 'failed' | 'skipped',
+            durationMs: s.durationMs,
+          })),
+          ...(result.error && {
+            error: {
+              message: result.error.message,
+              ...(result.error.stack && { stack: result.error.stack }),
+            },
+          }),
         };
         suiteReport.tests.push(testReport);
         await notifyAll(reporters, 'onTestComplete', testReport);
@@ -397,14 +473,29 @@ export class TestRunner {
       }
 
       suiteReport.durationMs = performance.now() - suiteStart;
-      suiteReport.status = suiteReport.tests.some((t) => t.status === 'failed') ? 'failed' : 'passed';
+      suiteReport.status = suiteReport.tests.some((t) => t.status === 'failed')
+        ? 'failed'
+        : 'passed';
       suiteReports.push(suiteReport);
       await notifyAll(reporters, 'onSuiteComplete', suiteReport);
     }
 
     const runDuration = performance.now() - runStart;
-    const summary: RunSummary = { total: allResults.length, passed: allResults.filter((r) => r.status === 'passed').length, failed: allResults.filter((r) => r.status === 'failed').length, skipped: allResults.filter((r) => r.status === 'skipped').length, flaky: allResults.filter((r) => r.status === 'flaky').length, durationMs: runDuration };
-    await notifyAll(reporters, 'onRunComplete', { startedAt: runStartedAt, completedAt: new Date().toISOString(), durationMs: runDuration, suites: suiteReports, summary } satisfies ReportData);
+    const summary: RunSummary = {
+      total: allResults.length,
+      passed: allResults.filter((r) => r.status === 'passed').length,
+      failed: allResults.filter((r) => r.status === 'failed').length,
+      skipped: allResults.filter((r) => r.status === 'skipped').length,
+      flaky: allResults.filter((r) => r.status === 'flaky').length,
+      durationMs: runDuration,
+    };
+    await notifyAll(reporters, 'onRunComplete', {
+      startedAt: runStartedAt,
+      completedAt: new Date().toISOString(),
+      durationMs: runDuration,
+      suites: suiteReports,
+      summary,
+    } satisfies ReportData);
 
     return allResults;
   }
@@ -436,7 +527,9 @@ export class TestRunner {
       if (panel) {
         let replay = panel.popReplay();
         while (replay) {
-          const replayTestCase = this.allTestCases.find((tc) => this.sanitizeId(tc.id) === replay!.scenarioId);
+          const replayTestCase = this.allTestCases.find(
+            (tc) => this.sanitizeId(tc.id) === replay!.scenarioId,
+          );
           const replayStep = replayTestCase?.steps[replay.stepIdx];
           if (replayStep) {
             const rawText = replayStep.description.replace(/^(Given|When|Then|And|But)\s+/, '');
@@ -444,7 +537,9 @@ export class TestRunner {
             if (match) {
               try {
                 await match.definition.handler(ctx, ...match.args);
-              } catch { /* replay errors are informational */ }
+              } catch {
+                /* replay errors are informational */
+              }
             }
           }
           replay = panel.popReplay();
@@ -492,10 +587,7 @@ export class TestRunner {
         });
 
         try {
-          await Promise.race([
-            match.definition.handler(ctx, ...match.args),
-            timeoutPromise,
-          ]);
+          await Promise.race([match.definition.handler(ctx, ...match.args), timeoutPromise]);
         } finally {
           clearTimeout(timer!);
         }
@@ -669,9 +761,7 @@ export class TestRunner {
     const regex = new RegExp(`^${regexStr}$`);
 
     const entries = await readdir(dir, { recursive: true });
-    return entries
-      .filter((entry) => regex.test(entry))
-      .map((entry) => resolve(dir, entry));
+    return entries.filter((entry) => regex.test(entry)).map((entry) => resolve(dir, entry));
   }
 
   private async importStepFile(filePath: string): Promise<void> {

@@ -61,9 +61,7 @@ export class SelectorCache {
       strategy,
       cssSelector,
       timestamp: new Date().toISOString(),
-      hitCount: existing && existing.cssSelector === cssSelector
-        ? existing.hitCount + 1
-        : 1,
+      hitCount: existing && existing.cssSelector === cssSelector ? existing.hitCount + 1 : 1,
     });
     this.dirty = true;
   }

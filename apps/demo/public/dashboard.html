@@ -1,127 +1,153 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard — Demo App</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: system-ui, sans-serif;
-      background: #0a0a0a;
-      color: #e0e0e0;
-      min-height: 100vh;
-      padding: 2rem;
-    }
-    nav {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-bottom: 1.5rem;
-      border-bottom: 1px solid #333;
-      margin-bottom: 2rem;
-    }
-    nav .brand { font-weight: 700; font-size: 1.2rem; }
-    nav .user { color: #888; font-size: 0.9rem; }
-    nav a {
-      color: #f87171;
-      text-decoration: none;
-      font-size: 0.9rem;
-      margin-left: 1.5rem;
-    }
-    nav a:hover { text-decoration: underline; }
-    h1 {
-      font-size: 1.8rem;
-      margin-bottom: 0.5rem;
-    }
-    .welcome {
-      color: #4ade80;
-      font-size: 1.1rem;
-      margin-bottom: 2rem;
-    }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 1rem;
-      margin-bottom: 2rem;
-    }
-    .stat {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 10px;
-      padding: 1.5rem;
-      text-align: center;
-    }
-    .stat .value {
-      font-size: 2rem;
-      font-weight: 700;
-      font-family: 'SF Mono', monospace;
-    }
-    .stat .label {
-      color: #888;
-      font-size: 0.8rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      margin-top: 0.25rem;
-    }
-    .stat:nth-child(1) .value { color: #4ade80; }
-    .stat:nth-child(2) .value { color: #f87171; }
-    .stat:nth-child(3) .value { color: #fbbf24; }
-    .stat:nth-child(4) .value { color: #60a5fa; }
-    .recent {
-      background: #1a1a1a;
-      border: 1px solid #333;
-      border-radius: 10px;
-      padding: 1.5rem;
-    }
-    .recent h2 { font-size: 1rem; margin-bottom: 1rem; }
-    .recent .empty { color: #666; font-size: 0.9rem; }
-  </style>
-</head>
-<body>
-  <nav>
-    <span class="brand">Demo App</span>
-    <div>
-      <span class="user" id="user-email"></span>
-      <a href="/login" id="logout-link">Sign out</a>
-    </div>
-  </nav>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard — Demo App</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        background: #0a0a0a;
+        color: #e0e0e0;
+        min-height: 100vh;
+        padding: 2rem;
+      }
+      nav {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid #333;
+        margin-bottom: 2rem;
+      }
+      nav .brand {
+        font-weight: 700;
+        font-size: 1.2rem;
+      }
+      nav .user {
+        color: #888;
+        font-size: 0.9rem;
+      }
+      nav a {
+        color: #f87171;
+        text-decoration: none;
+        font-size: 0.9rem;
+        margin-left: 1.5rem;
+      }
+      nav a:hover {
+        text-decoration: underline;
+      }
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.5rem;
+      }
+      .welcome {
+        color: #4ade80;
+        font-size: 1.1rem;
+        margin-bottom: 2rem;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+      }
+      .stat {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 1.5rem;
+        text-align: center;
+      }
+      .stat .value {
+        font-size: 2rem;
+        font-weight: 700;
+        font-family: 'SF Mono', monospace;
+      }
+      .stat .label {
+        color: #888;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 0.25rem;
+      }
+      .stat:nth-child(1) .value {
+        color: #4ade80;
+      }
+      .stat:nth-child(2) .value {
+        color: #f87171;
+      }
+      .stat:nth-child(3) .value {
+        color: #fbbf24;
+      }
+      .stat:nth-child(4) .value {
+        color: #60a5fa;
+      }
+      .recent {
+        background: #1a1a1a;
+        border: 1px solid #333;
+        border-radius: 10px;
+        padding: 1.5rem;
+      }
+      .recent h2 {
+        font-size: 1rem;
+        margin-bottom: 1rem;
+      }
+      .recent .empty {
+        color: #666;
+        font-size: 0.9rem;
+      }
+    </style>
+  </head>
+  <body>
+    <nav>
+      <span class="brand">Demo App</span>
+      <div>
+        <span class="user" id="user-email"></span>
+        <a href="/login" id="logout-link">Sign out</a>
+      </div>
+    </nav>
 
-  <h1 id="dashboard-heading">Dashboard</h1>
-  <p class="welcome" id="welcome-message"></p>
+    <h1 id="dashboard-heading">Dashboard</h1>
+    <p class="welcome" id="welcome-message"></p>
 
-  <div class="stats">
-    <div class="stat">
-      <div class="value">128</div>
-      <div class="label">Tests Passed</div>
+    <div class="stats">
+      <div class="stat">
+        <div class="value">128</div>
+        <div class="label">Tests Passed</div>
+      </div>
+      <div class="stat">
+        <div class="value">3</div>
+        <div class="label">Tests Failed</div>
+      </div>
+      <div class="stat">
+        <div class="value">7</div>
+        <div class="label">Flaky</div>
+      </div>
+      <div class="stat">
+        <div class="value">98.2%</div>
+        <div class="label">Pass Rate</div>
+      </div>
     </div>
-    <div class="stat">
-      <div class="value">3</div>
-      <div class="label">Tests Failed</div>
-    </div>
-    <div class="stat">
-      <div class="value">7</div>
-      <div class="label">Flaky</div>
-    </div>
-    <div class="stat">
-      <div class="value">98.2%</div>
-      <div class="label">Pass Rate</div>
-    </div>
-  </div>
 
-  <div class="recent">
-    <h2>Recent Activity</h2>
-    <p class="empty">No recent test runs.</p>
-  </div>
+    <div class="recent">
+      <h2>Recent Activity</h2>
+      <p class="empty">No recent test runs.</p>
+    </div>
 
-  <script>
-    const params = new URLSearchParams(window.location.search);
-    const user = params.get('user') || 'User';
-    const name = user.split('@')[0];
-    const displayName = name.charAt(0).toUpperCase() + name.slice(1);
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const user = params.get('user') || 'User';
+      const name = user.split('@')[0];
+      const displayName = name.charAt(0).toUpperCase() + name.slice(1);
 
-    document.getElementById('user-email').textContent = user;
-    document.getElementById('welcome-message').textContent = `Welcome back, ${displayName}!`;
-  </script>
-</body>
+      document.getElementById('user-email').textContent = user;
+      document.getElementById('welcome-message').textContent = `Welcome back, ${displayName}!`;
+    </script>
+  </body>
 </html>

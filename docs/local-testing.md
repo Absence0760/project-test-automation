@@ -6,12 +6,12 @@ How to set up, build, and test Better Test Automation on your machine.
 
 ## Prerequisites
 
-| Tool | Version | Install |
-|------|---------|---------|
-| **Node.js** | >= 22 | [nodejs.org](https://nodejs.org) or `brew install node` |
-| **pnpm** | >= 10 | `npm install -g pnpm` or `brew install pnpm` |
-| **Rust** | >= 1.85 (edition 2024) | See [Installing Rust](#installing-rust) below |
-| **Ollama** (optional) | latest | [ollama.com](https://ollama.com) — only needed for AI features |
+| Tool                  | Version                | Install                                                        |
+| --------------------- | ---------------------- | -------------------------------------------------------------- |
+| **Node.js**           | >= 22                  | [nodejs.org](https://nodejs.org) or `brew install node`        |
+| **pnpm**              | >= 10                  | `npm install -g pnpm` or `brew install pnpm`                   |
+| **Rust**              | >= 1.85 (edition 2024) | See [Installing Rust](#installing-rust) below                  |
+| **Ollama** (optional) | latest                 | [ollama.com](https://ollama.com) — only needed for AI features |
 
 Verify your setup:
 
@@ -239,6 +239,7 @@ PORT=3001 pnpm demo
 ```
 
 Pages:
+
 - `/login` — Login form (email + password, error states, account lockout)
 - `/dashboard` — Dashboard with welcome message
 
@@ -281,6 +282,7 @@ pnpm exec tsx packages/runner/src/cli.ts \
 In headed mode (`--headed`), the browser opens with a **Cypress-style sidebar panel** on the left and the app under test in an iframe on the right.
 
 **Flow:**
+
 1. **Test picker** — all discovered features/scenarios shown with checkboxes (unchecked by default)
 2. Check individual scenarios or click the **▶ play button** next to a feature to select all its scenarios
 3. Click **"Run Selected"** — tests execute with real-time step updates in the sidebar
@@ -294,30 +296,30 @@ In headless mode (default, no `--headed`), all discovered tests run automaticall
 
 ### CLI flags
 
-| Flag | Description |
-|------|-------------|
-| `--testDir <path>` | Directory containing `.feature` and `.steps.ts` files |
-| `--base-url <url>` | Base URL of the app under test |
-| `--headed` | Interactive mode: panel UI, test picker, time-travel, pause/stop |
-| `--headless` | Auto-run all tests, no browser window (default) |
-| `--slow <ms>` | Pause between steps so you can watch (e.g., `--slow 1000` for 1s) |
-| `--keep-open` | Keep the browser open after tests finish (press Ctrl+C to close) |
-| `--dry-run` | No browser — log actions only |
-| `--retries <n>` | Retry failed tests up to N times (marks as `flaky` if pass on retry) |
-| `--tags <tags>` | Comma-separated tag filter (e.g., `@smoke,@auth`) |
-| `--failFast` | Stop on first failure |
-| `-v, --verbose` | Show each action the context performs |
-| `-c, --config <path>` | Path to config file |
-| `-h, --help` | Show help |
+| Flag                  | Description                                                          |
+| --------------------- | -------------------------------------------------------------------- |
+| `--testDir <path>`    | Directory containing `.feature` and `.steps.ts` files                |
+| `--base-url <url>`    | Base URL of the app under test                                       |
+| `--headed`            | Interactive mode: panel UI, test picker, time-travel, pause/stop     |
+| `--headless`          | Auto-run all tests, no browser window (default)                      |
+| `--slow <ms>`         | Pause between steps so you can watch (e.g., `--slow 1000` for 1s)    |
+| `--keep-open`         | Keep the browser open after tests finish (press Ctrl+C to close)     |
+| `--dry-run`           | No browser — log actions only                                        |
+| `--retries <n>`       | Retry failed tests up to N times (marks as `flaky` if pass on retry) |
+| `--tags <tags>`       | Comma-separated tag filter (e.g., `@smoke,@auth`)                    |
+| `--failFast`          | Stop on first failure                                                |
+| `-v, --verbose`       | Show each action the context performs                                |
+| `-c, --config <path>` | Path to config file                                                  |
+| `-h, --help`          | Show help                                                            |
 
 ### What the 4 scenarios test
 
-| Scenario | What happens in the browser |
-|----------|---------------------------|
+| Scenario         | What happens in the browser                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------- |
 | Successful login | Navigate → fill email + password → click Sign in → assert dashboard heading + welcome message |
-| Invalid password | Fill wrong password → click → assert "Invalid email or password" error |
-| Account lockout | 5 failed logins → assert "Account locked" message |
-| Accessible form | Assert email/password labels exist and are visible |
+| Invalid password | Fill wrong password → click → assert "Invalid email or password" error                        |
+| Account lockout  | 5 failed logins → assert "Account locked" message                                             |
+| Accessible form  | Assert email/password labels exist and are visible                                            |
 
 ### How semantic selectors resolve
 
@@ -344,7 +346,8 @@ import { GherkinParser } from '@bettertest/bdd';
 
 const parser = new GherkinParser();
 
-const feature = parser.parse(`
+const feature = parser.parse(
+  `
 @smoke
 Feature: User Login
   As a user I want to log in
@@ -354,7 +357,9 @@ Feature: User Login
     When they enter valid credentials
     And they click the submit button
     Then they should see the dashboard
-`, 'login.feature');
+`,
+  'login.feature',
+);
 
 console.log(JSON.stringify(feature, null, 2));
 ```
@@ -461,7 +466,7 @@ Configure in `bettertest.config.ts`:
 export default defineConfig({
   ai: {
     provider: 'local',
-    model: 'llama3',        // or any Ollama model
+    model: 'llama3', // or any Ollama model
     endpoint: 'http://localhost:11434',
   },
 });
@@ -471,16 +476,16 @@ export default defineConfig({
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `BETTERTEST_LOG` | `info` | Log level: `trace`, `debug`, `info`, `warn`, `error` |
-| `CHROME_PATH` | (auto-detect) | Path to Chrome binary (overrides auto-detection) |
-| `BETTERTEST_BROWSER` | `chromium` | Default browser |
-| `BETTERTEST_HEADLESS` | `true` | Run browser headless |
-| `BETTERTEST_BASE_URL` | — | Override config `baseUrl` |
-| `BETTERTEST_WORKERS` | `auto` | Override worker count |
-| `PORT` | `3000` | Port for the demo app |
-| `OLLAMA_HOST` | `http://localhost:11434` | Ollama endpoint |
+| Variable              | Default                  | Description                                          |
+| --------------------- | ------------------------ | ---------------------------------------------------- |
+| `BETTERTEST_LOG`      | `info`                   | Log level: `trace`, `debug`, `info`, `warn`, `error` |
+| `CHROME_PATH`         | (auto-detect)            | Path to Chrome binary (overrides auto-detection)     |
+| `BETTERTEST_BROWSER`  | `chromium`               | Default browser                                      |
+| `BETTERTEST_HEADLESS` | `true`                   | Run browser headless                                 |
+| `BETTERTEST_BASE_URL` | —                        | Override config `baseUrl`                            |
+| `BETTERTEST_WORKERS`  | `auto`                   | Override worker count                                |
+| `PORT`                | `3000`                   | Port for the demo app                                |
+| `OLLAMA_HOST`         | `http://localhost:11434` | Ollama endpoint                                      |
 
 ---
 
@@ -551,6 +556,7 @@ CHROME_PATH="/path/to/chrome" pnpm exec tsx packages/runner/src/cli.ts --testDir
 ```
 
 Common paths:
+
 - **macOS**: `/Applications/Google Chrome.app/Contents/MacOS/Google Chrome`
 - **Linux**: `/usr/bin/google-chrome` or `/usr/bin/chromium`
 - **Windows**: `C:\Program Files\Google\Chrome\Application\chrome.exe`

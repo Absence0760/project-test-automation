@@ -96,11 +96,7 @@ describe('JsonReporter', () => {
     await reporter.onRunComplete(mockReportData);
 
     expect(fs.mkdir).toHaveBeenCalledWith('out', { recursive: true });
-    expect(fs.writeFile).toHaveBeenCalledWith(
-      'out/report.json',
-      expect.any(String),
-      'utf-8',
-    );
+    expect(fs.writeFile).toHaveBeenCalledWith('out/report.json', expect.any(String), 'utf-8');
 
     const writtenJson = vi.mocked(fs.writeFile).mock.calls[0]![1] as string;
     const parsed = JSON.parse(writtenJson);

@@ -6,7 +6,7 @@ How Better Test Automation is built and why each layer exists.
 
 ## Design Principle
 
-Cypress and Playwright are browser-automation libraries dressed up as test frameworks. Better Test Automation is a **test intelligence platform** — it understands *intent*, not just DOM interactions.
+Cypress and Playwright are browser-automation libraries dressed up as test frameworks. Better Test Automation is a **test intelligence platform** — it understands _intent_, not just DOM interactions.
 
 This distinction drives every architectural decision.
 
@@ -64,16 +64,16 @@ This distinction drives every architectural decision.
 
 ## Why Rust + TypeScript?
 
-| Layer | Language | Reason |
-|-------|----------|--------|
-| Test authoring | TypeScript | Familiarity — this is what the target audience writes daily |
-| Gherkin/BDD | TypeScript | Step definitions are user code, must be JS-ecosystem native |
-| AI integration | TypeScript | HTTP calls to Ollama, prompt building — no perf criticality |
-| Browser protocol | Rust | WebSocket message parsing at high throughput, memory safety |
-| Selector engine | Rust | DOM tree traversal, scoring, caching — hot path, must be fast |
-| Execution graph | Rust | DAG scheduling, parallel coordination — concurrency is Rust's strength |
-| Self-healing | Rust | DOM diffing across large trees — compute-intensive |
-| CLI/TUI | Rust | Single binary distribution, fast startup, Ratatui for terminal UI |
+| Layer            | Language   | Reason                                                                 |
+| ---------------- | ---------- | ---------------------------------------------------------------------- |
+| Test authoring   | TypeScript | Familiarity — this is what the target audience writes daily            |
+| Gherkin/BDD      | TypeScript | Step definitions are user code, must be JS-ecosystem native            |
+| AI integration   | TypeScript | HTTP calls to Ollama, prompt building — no perf criticality            |
+| Browser protocol | Rust       | WebSocket message parsing at high throughput, memory safety            |
+| Selector engine  | Rust       | DOM tree traversal, scoring, caching — hot path, must be fast          |
+| Execution graph  | Rust       | DAG scheduling, parallel coordination — concurrency is Rust's strength |
+| Self-healing     | Rust       | DOM diffing across large trees — compute-intensive                     |
+| CLI/TUI          | Rust       | Single binary distribution, fast startup, Ratatui for terminal UI      |
 
 The NAPI-RS bridge connects Rust ↔ Node.js with zero-copy where possible. TypeScript calls into Rust for performance-critical operations; Rust calls back into TypeScript for user-defined step handlers.
 
@@ -96,6 +96,7 @@ Better Test Automation
 **Why not bundle Chromium?**
 
 Playwright bundles ~400MB of browsers. This creates:
+
 - Huge `node_modules`
 - Version lock-in (your tests run against Playwright's Chromium, not the browser your users have)
 - CI cache bloat
@@ -166,6 +167,7 @@ Traditional runners execute tests sequentially or with naive parallelism (split 
 ```
 
 The scheduler:
+
 1. Builds a DAG from test dependency declarations
 2. Detects cycles (error) and independent subgraphs
 3. Sorts by failure probability (fail-fast: run most-likely-to-fail first)

@@ -95,10 +95,18 @@
     letter-spacing: 0.05em;
   }
 
-  .stat.passed .value { color: var(--green); }
-  .stat.failed .value { color: var(--red); }
-  .stat.flaky .value { color: var(--yellow); }
-  .stat.healed .value { color: var(--blue); }
+  .stat.passed .value {
+    color: var(--green);
+  }
+  .stat.failed .value {
+    color: var(--red);
+  }
+  .stat.flaky .value {
+    color: var(--yellow);
+  }
+  .stat.healed .value {
+    color: var(--blue);
+  }
 
   .panels {
     display: grid;
