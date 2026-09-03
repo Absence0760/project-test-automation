@@ -37,7 +37,10 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        # Pinned to the tip of the action's `stable` branch. This freezes the
+        # action code, not the Rust version — rustup still resolves "stable"
+        # to the current release at run time.
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable @ 2026-09-03
         with:
           components: clippy, rustfmt
 
