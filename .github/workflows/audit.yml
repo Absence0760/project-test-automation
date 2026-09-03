@@ -1,0 +1,160 @@
+name: Dependency audit
+
+# Weekly scheduled audit + manual trigger. Runs `pnpm audit` across the
+# workspace AND `cargo audit` against the Rust crates, then opens a single
+# tracking issue if either finds anything at moderate-or-higher severity.
+# Closes the issue automatically when the next clean run completes.
+#
+# The base template only audits npm. This repo ships a Rust workspace as
+# well, and RustSec advisories never surface in `pnpm audit`, so both run
+# here and their findings are merged into one issue body.
+on:
+  schedule:
+    # 06:00 UTC every Monday — early enough to land in the inbox before any
+    # work starts, late enough that the cron isn't competing with peak
+    # workflow scheduler load.
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up pnpm
+        # No `version:` — pnpm/action-setup reads `packageManager` from
+        # package.json. Specifying both is a hard error.
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+
+      - name: Set up Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo-audit binary
+        id: cargo-audit-cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ~/.cargo/bin/cargo-audit
+          key: cargo-audit-${{ runner.os }}
+
+      - name: Install cargo-audit
+        if: steps.cargo-audit-cache.outputs.cache-hit != 'true'
+        run: cargo install cargo-audit --locked
+
+      - name: Run audits
+        id: audit
+        run: |
+          set +e
+          : > audit-summary.md
+
+          # --- npm ---------------------------------------------------------
+          # --audit-level=moderate ignores low/info findings (typically noise
+          # from dev-only deps with no real exposure). Non-zero exit when
+          # issues are found at >= that level.
+          pnpm audit --audit-level=moderate --json > npm-audit.json
+          npm_code=$?
+
+          # --- cargo -------------------------------------------------------
+          # cargo audit exits non-zero on any advisory match against the
+          # RustSec database.
+          cargo audit --json > cargo-audit.json
+          cargo_code=$?
+
+          echo "npm exit=$npm_code cargo exit=$cargo_code"
+
+          if [ "$npm_code" -ne 0 ]; then
+            {
+              echo "## pnpm audit findings (moderate or higher)"
+              echo ""
+              echo '```json'
+              head -c 30000 npm-audit.json
+              echo ""
+              echo '```'
+              echo ""
+            } >> audit-summary.md
+          fi
+
+          if [ "$cargo_code" -ne 0 ]; then
+            {
+              echo "## cargo audit findings (RustSec advisories)"
+              echo ""
+              echo '```json'
+              head -c 30000 cargo-audit.json
+              echo ""
+              echo '```'
+              echo ""
+            } >> audit-summary.md
+          fi
+
+          if [ ! -s audit-summary.md ]; then
+            echo "No findings." > audit-summary.md
+          fi
+
+          if [ "$npm_code" -ne 0 ] || [ "$cargo_code" -ne 0 ]; then
+            echo "exit_code=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "exit_code=0" >> "$GITHUB_OUTPUT"
+          fi
+
+          cat audit-summary.md
+
+      - name: Open or update tracking issue on findings
+        if: steps.audit.outputs.exit_code != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # Ensure the label exists. Idempotent — silently no-ops if already
+          # there. Lets the workflow run cleanly on a fresh repo.
+          gh label create dependency-audit --repo "$REPO" \
+            --color FBCA04 \
+            --description "Findings from the scheduled dependency audit workflow" \
+            2>/dev/null || true
+
+          # Look for an existing open issue tagged "dependency-audit". If one
+          # exists, update its body; otherwise create a new one.
+          existing=$(gh issue list --repo "$REPO" --state open \
+            --label dependency-audit --json number --jq '.[0].number // empty')
+
+          if [ -n "$existing" ]; then
+            gh issue edit "$existing" --repo "$REPO" --body-file audit-summary.md
+            gh issue comment "$existing" --repo "$REPO" \
+              --body "Re-detected on $(date -u +%Y-%m-%d). See workflow run $GITHUB_RUN_ID."
+          else
+            gh issue create --repo "$REPO" \
+              --title "Dependency audit: vulnerabilities detected" \
+              --body-file audit-summary.md \
+              --label dependency-audit
+          fi
+
+      - name: Close tracking issue on clean run
+        if: steps.audit.outputs.exit_code == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          existing=$(gh issue list --repo "$REPO" --state open \
+            --label dependency-audit --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue close "$existing" --repo "$REPO" \
+              --comment "Audit clean as of $(date -u +%Y-%m-%d) — closing automatically."
+          fi

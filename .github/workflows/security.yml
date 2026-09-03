@@ -1,0 +1,115 @@
+name: Security
+
+# Static analysis (SAST) of our own code via CodeQL. Complements
+# .github/workflows/audit.yml (which only catches known CVEs in dependencies).
+# CodeQL finds vulnerabilities in code we write — XSS sinks, prototype
+# pollution, SSRF, hard-coded secrets, unsafe deserialisation — and (separate
+# language) workflow-injection sinks in the GitHub Actions YAML itself.
+# Results land in the repo's Security tab under "Code scanning alerts".
+#
+# Note the PR trigger is deliberately NOT filtered to `branches: [main]`. A
+# stacked PR based on another feature branch matches no base-branch filter and
+# would run nothing, reporting green while entirely unscanned.
+#
+# Triggers:
+#   - pull_request: gate new code on a clean scan
+#   - push to main: scan post-merge state, refresh the Security-tab baseline
+#   - weekly cron (Sunday 06:00 UTC): catch new CodeQL queries flagging
+#     existing code without waiting for a PR. Offset by ~24h from audit.yml /
+#     gitleaks / scorecard (Monday 06:00 UTC) so the scans don't compete for
+#     hosted-runner scheduler slots.
+#   - workflow_dispatch: ad-hoc manual runs
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 0'
+  workflow_dispatch:
+
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
+
+# Workflow-level permission is the least-privilege baseline; the analyze job
+# below requests the additional scopes it actually needs. Per Scorecard
+# Token-Permissions guidance: prefer per-job permission blocks over a single
+# elevated top-level set.
+permissions: read-all
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      # SARIF upload requires `security-events: write` for the analyze step
+      # to publish findings into the Security tab.
+      security-events: write
+      # `actions: read` is needed by the analyze step's workflow-run lookup
+      # (without it the action errors with "Resource not accessible by
+      # integration" even when analysis itself succeeded).
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # build-mode varies by language, so this is an `include` matrix rather
+        # than the plain `language: [...]` list the other repos use.
+        #
+        # javascript-typescript covers packages/*, apps/demo, and the
+        # SvelteKit dashboard. The extractor picks up .ts, .js, and .svelte
+        # automatically, and needs no build.
+        #
+        # actions covers every workflow under .github/workflows/. The query
+        # set flags untrusted-input -> shell-script injection (e.g. a PR title
+        # interpolated into a `run:` block) and unpinned action references.
+        #
+        # rust covers crates/*. Unlike the interpreted languages it needs a
+        # real compile, so it uses `autobuild` (which runs cargo build) and
+        # gets the longer timeout above.
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: actions
+            build-mode: none
+          - language: rust
+            build-mode: autobuild
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust toolchain
+        if: matrix.language == 'rust'
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        if: matrix.language == 'rust'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: codeql-cargo-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: codeql-cargo-${{ runner.os }}-
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          # security-and-quality is the broadest of the three suites
+          # (security < security-extended < security-and-quality). For a
+          # codebase this size the extra noise is manageable. Languages that
+          # only ship a `security-extended` ceiling (actions, rust) fall back
+          # to that silently — no per-language branching required.
+          queries: security-and-quality
+
+      - name: Perform analysis
+        uses: github/codeql-action/analyze@68bde559dea0fdcac2102bfdf6230c5f70eb485e # v4
+        with:
+          category: '/language:${{ matrix.language }}'

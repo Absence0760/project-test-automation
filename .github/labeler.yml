@@ -1,0 +1,69 @@
+# Config for actions/labeler. Each top-level key is a label name; the
+# `changed-files` list is the set of glob patterns that, if matched by any
+# changed file, applies the label.
+#
+# Paths track this repo's actual layout: a Rust workspace under crates/, the
+# published TypeScript packages under packages/, and the dashboard + demo
+# apps under apps/.
+
+'area:rust':
+  - changed-files:
+      - any-glob-to-any-file:
+          - crates/**
+          - Cargo.toml
+          - Cargo.lock
+          - .rustfmt.toml
+
+'area:packages':
+  - changed-files:
+      - any-glob-to-any-file:
+          - packages/**
+
+'area:dashboard':
+  - changed-files:
+      - any-glob-to-any-file:
+          - apps/dashboard/**
+
+'area:demo':
+  - changed-files:
+      - any-glob-to-any-file:
+          - apps/demo/**
+          - examples/**
+
+'area:ci':
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/**
+          - .github/dependabot.yml
+          - .github/labeler.yml
+          - .pre-commit-config.yaml
+
+'area:docs':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.md'
+          - docs/**
+          - '**/CLAUDE.md'
+
+'area:tests':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/*.test.ts'
+          - '**/__tests__/**'
+          - crates/**/tests/**
+
+'area:deps':
+  - changed-files:
+      - any-glob-to-any-file:
+          - '**/package.json'
+          - pnpm-lock.yaml
+          - pnpm-workspace.yaml
+          - '**/Cargo.toml'
+          - Cargo.lock
+
+'area:release':
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/workflows/release.yml
+          - scripts/install.sh
+          - packages/cli/**

@@ -1,0 +1,38 @@
+version: 2
+
+updates:
+  # GitHub Actions used in workflows. Grouped into a single PR — action
+  # bumps are almost always independent and reviewing five separate PRs
+  # for a SHA change each is pure overhead.
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ['*']
+
+  # npm. A single root entry covers the whole pnpm workspace — Dependabot
+  # reads pnpm-workspace.yaml and picks up apps/* and packages/* from the
+  # root lockfile, so per-package entries would be redundant.
+  - package-ecosystem: npm
+    directory: '/'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: ['minor', 'patch']
+
+  # Cargo — the Rust workspace under crates/. Same grouping rationale:
+  # minor/patch bumps land together, majors get their own PR because they
+  # tend to need code changes (napi and tokio especially).
+  - package-ecosystem: cargo
+    directory: '/'
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types: ['minor', 'patch']
