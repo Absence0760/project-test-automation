@@ -1,21 +1,40 @@
+# The repo's real CI. Its `CI gate` job is the single required status check
+# on `main`; every other job here feeds into it, so adding a job means adding
+# it to that job's `needs` list and nothing else.
+#
+# `ci-gate-docs.yml` is the companion for the inverse path set: this workflow
+# is skipped wholesale on docs-only / *.md PRs (the `paths-ignore` below),
+# which would otherwise leave the required "CI gate" context pending forever
+# and block those PRs from merging. Keep that file's `paths` the exact inverse
+# of the `paths-ignore` here — if one moves, move the other in the same change.
 name: CI
 
 on:
   push:
+    # Only main. A push to a feature branch is validated by its PR; a push
+    # run's job is to re-validate main itself after a merge.
     branches: [main]
+  # Deliberately NOT filtered to `branches: [main]` — a stacked PR based on
+  # another feature branch matches no branch filter and would run nothing,
+  # reporting green while entirely unscanned.
   pull_request:
-    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
   rust:
     name: Rust Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -23,7 +42,7 @@ jobs:
           components: clippy, rustfmt
 
       - name: Cache Cargo
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.cargo/bin/
@@ -49,15 +68,15 @@ jobs:
     name: TypeScript Tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install pnpm
         # No `version:` — pnpm/action-setup reads `packageManager` from
         # package.json. Specifying both is a hard error (ERR_PNPM_BAD_PM_VERSION).
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: 22
           cache: pnpm
@@ -76,3 +95,29 @@ jobs:
 
       - name: Run tests
         run: pnpm test
+
+  # ---------------------------------------------------------------------
+  # The gate. This job's name is the single required status check on main;
+  # it passes only when every upstream job succeeded or was skipped.
+  # ---------------------------------------------------------------------
+  ci-gate:
+    name: CI gate
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - rust
+      - typescript
+    steps:
+      - name: Require every upstream job to have passed
+        env:
+          NEEDS_JSON: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS_JSON"
+          bad=$(echo "$NEEDS_JSON" | jq -r \
+            'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key)=\(.value.result)"')
+          if [ -n "$bad" ]; then
+            echo "::error::CI gate failing — upstream jobs did not pass:"
+            echo "$bad"
+            exit 1
+          fi
+          echo "All upstream jobs passed."
