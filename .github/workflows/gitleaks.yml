@@ -1,0 +1,63 @@
+name: gitleaks
+
+# Secret-scan every push to main, every PR, and the full history once a week.
+# The secret that matters most in this repo is NPM_TOKEN — it is what
+# release.yml uses to publish packages, and a leak of it means anyone can
+# push a malicious version of @bettertest/* to the registry. GITHUB_TOKEN
+# and any AWS keys are the other obvious shapes.
+#
+# Complements existing controls:
+#   - CodeQL (workflows/security.yml) — finds source-level injection vulns,
+#     not secrets.
+#   - pnpm audit + cargo audit (workflows/audit.yml) — flag CVEs in
+#     dependencies, not committed secrets.
+#
+# What gitleaks adds: regex-matching against the entire working tree AND git
+# history, with a built-in rule set tuned for common token shapes (npm,
+# GitHub, AWS, generic API keys, etc.).
+#
+# False positives go in `.gitleaks.toml` at the repo root (not yet created —
+# add it on first false hit rather than pre-empt).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly full-history sweep. The push / PR triggers above only
+    # diff against the base, so a secret that landed on a forgotten
+    # branch and got merged via fast-forward could slip through.
+    # 06:00 UTC Monday — same tide as audit.yml / security.yml / scorecard.yml.
+    - cron: '0 6 * * 1'
+
+permissions: read-all
+
+jobs:
+  scan:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      # The action POSTs SARIF findings via the same security-events
+      # permission CodeQL uses — keeps the Security tab the single
+      # pane of glass.
+      security-events: write
+      # PR metadata for inline annotations.
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          # `fetch-depth: 0` is required for the full-history scan
+          # on the scheduled run. Push/PR triggers ignore the depth
+          # because they have access to the base ref via the
+          # workflow event itself.
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE is intentionally unset — public-repo free
+          # tier covers everything we need.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: 'false'
