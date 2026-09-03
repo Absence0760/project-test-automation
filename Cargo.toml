@@ -37,7 +37,7 @@ clap = { version = "4", features = ["derive"] }
 
 # TUI
 ratatui = "0.29"
-crossterm = "0.28"
+crossterm = "0.29"
 
 # NAPI
 napi = { version = "2", features = ["async", "serde-json"] }
