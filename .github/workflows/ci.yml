@@ -96,6 +96,16 @@ jobs:
       - name: Build packages
         run: pnpm build
 
+      # Runs after the build for the same reason: `tsc --noEmit` resolves
+      # cross-package imports through each package's `exports` -> `dist/`,
+      # and the dashboard's `svelte-kit sync` needs the workspace built.
+      #
+      # This is deliberately its own step rather than folded into `pnpm test`.
+      # Without it CI never type-checks anything, which is how a TypeScript 7
+      # bump (#12) reached a green CI while breaking `svelte-check` outright.
+      - name: Typecheck
+        run: pnpm typecheck
+
       - name: Run tests
         run: pnpm test
 
