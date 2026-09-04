@@ -29,14 +29,14 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # WebSocket (for WebDriver BiDi)
-tokio-tungstenite = { version = "0.26", features = ["native-tls"] }
+tokio-tungstenite = { version = "0.30", features = ["native-tls"] }
 futures-util = "0.3"
 
 # CLI
 clap = { version = "4", features = ["derive"] }
 
 # TUI
-ratatui = "0.29"
+ratatui = "0.30"
 crossterm = "0.29"
 
 # NAPI
